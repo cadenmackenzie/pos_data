@@ -60,7 +60,61 @@ class processMPower(object):
         df = df[self.cols]
         return df
 
-# class processPOSNAME2Pos(processPOSNAME1Pos):
+
+class processTiger(processMPower):
+    def __init__(self):
+        self.cols = [
+            'rt_product_id','rt_upc_code','rt_brand_name',
+            'rt_brand_description','rt_product_type','rt_product_category',
+            'rt_package_size','rt_item_size','price_regular',
+            'price_sale','qty_on_hand'
+            ]
+        self.col_names_dict = {
+            'itemid':'rt_product_id',
+            'itemscanid':'rt_upc_code',
+            'itemorder':'rt_brand_name',
+            'itemname':'rt_brand_description',
+            'deptid':'rt_product_type',
+            'deptid':'rt_product_category',
+            'isize':'rt_package_size',
+            'stdprice':'price_regular',
+            'webprice':'price_sale',
+            'qtyonhand':'qty_on_hand'
+        }
+        pass        
+    
+    def load_data(self, input_filenames):
+        # Check if input input_filenames is list
+        if not isinstance(input_filenames, list):
+            raise Exception("input_filenames is not a list - expecting input_filenames to be a list with single .csv file.")
+        
+        # Check if input input_filenames is list  
+        if len(input_filenames) > 1:
+            raise Exception("More than one file passed - expecting a single .csv file in input_filenames.")
+        
+        if '.csv' in input_filenames[0]:
+            df = pd.read_csv(input_filenames[0], sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .csv extension.")
+        pass
+
+    def process_data(self, df):
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # For both rt_product_type and rt_product_category turn deptid into category
+        df['rt_product_type'] = df['rt_product_type'].apply(lambda x: 'BEER' if x == 3 else 'LIQUOR' if x == 2 else 'WINE' if x == 4 else 'EXTRAS')
+        df['rt_product_category'] = df['rt_product_category'].apply(lambda x: 'BEER' if x == 3 else 'LIQUOR' if x == 2 else 'WINE' if x == 4 else 'EXTRAS')
+        
+        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
+        if 'rt_item_size' not in df.columns:
+            df['rt_item_size'] = ''
+        
+        df = df[self.cols]
+        return df
+
+# class processPOSNAME2Pos(processMPower):
 #     def __init__(self):
 #         self.col_names_dict = {
 #             'code_num':'rt_product_id',
@@ -147,8 +201,11 @@ def get_retailer_info(filename):
 def process_pos(input_filenames, output_filename):
     retailer_id, retailer_pos = get_retailer_info(input_filenames[0])
     
-    if retailer_pos == 'mPower':
+    if retailer_pos.lower() == 'mpower':
         pos_proc = processMPower()
+
+    if retailer_pos.lower() == 'tiger':
+        pos_proc = processTiger()
             
     # if retailer_pos == '2':
     #     pos_proc = processPOSNAME2Pos()
@@ -194,20 +251,3 @@ def lambda_handler(event, context):
         'statusCode': 200,
         'body': json.dumps('Success!')
     }
-
-
-
-# def lambda_handler(event, context):
-#     #print("Received event: " + json.dumps(event, indent=2))
-
-#     # Get the object from the event and show its content type
-#     bucket = event['Records'][0]['s3']['bucket']['name']
-#     key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
-#     try:
-#         response = s3_client.get_object(Bucket=bucket, Key=key)
-#         print("CONTENT TYPE: " + response['ContentType'])
-#         return response['ContentType']
-#     except Exception as e:
-#         print(e)
-#         print('Error getting object {} from bucket {}. Make sure they exist and your bucket is in the same region as this function.'.format(key, bucket))
-#         raise e
