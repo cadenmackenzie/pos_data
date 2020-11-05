@@ -4,10 +4,10 @@ import unittest
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
 
-module_path = os.path.abspath(os.path.join('../'))
+module_path = os.path.abspath(os.path.join('../src'))
 if module_path not in sys.path:
     sys.path.append(module_path)
-from data_processing_lambda import processPOSNAME1Pos
+from data_processing_lambda import processMPower
 
 class TestDataProcessing(unittest.TestCase):
 
@@ -16,22 +16,22 @@ class TestDataProcessing(unittest.TestCase):
 
     def test_pos_1_load_data_exceptions(self):
         '''
-        Raise proper exceptions for processPOSNAME1Pos.load_data()
+        Raise proper exceptions for processMPower.load_data()
         '''
         # If filename not a list
-        pos = processPOSNAME1Pos()
+        pos = processMPower()
         with self.assertRaises(Exception) as context:
             pos.load_data(input_filenames ='test.csv')
             self.assertTrue("input_filenames is not a list - expecting input_filenames to be a list with single .csv file." in str(context.exception))
 
         # If filename is multiple item list
-        pos = processPOSNAME1Pos()
+        pos = processMPower()
         with self.assertRaises(Exception) as context:
             pos.load_data(input_filenames =['test_1.csv','test_2.csv'])
             self.assertTrue("More than one file passed - expecting a single .csv file in input_filenames." in str(context.exception))
 
         # If filename is not csv file
-        pos = processPOSNAME1Pos()
+        pos = processMPower()
         with self.assertRaises(Exception) as context:
             pos.load_data(input_filenames =['test_1.xlsx'])
             self.assertTrue("Unrecognized file type - expecting .csv extension." in str(context.exception))
@@ -53,7 +53,7 @@ class TestDataProcessing(unittest.TestCase):
                                 })
         test.to_csv('test.csv', index=False)
 
-        pos = processPOSNAME1Pos()
+        pos = processMPower()
         df = pos.load_data(input_filenames =['test.csv'])
         assert_frame_equal(df, test)
 
@@ -76,7 +76,7 @@ class TestDataProcessing(unittest.TestCase):
                                 })
         test.to_csv('test.csv', index=False)
 
-        pos = processPOSNAME1Pos()
+        pos = processMPower()
         df = pos.load_data(input_filenames =['test.csv'])
         df = pos.process_data(df)
 
