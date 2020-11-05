@@ -140,8 +140,8 @@ def get_retailer_info(filename):
 
     # Use the filename prefix/suffix to retrieve info POS and retailer_id of retailer --> file prefix must be unique
     print(filename)
-    print(str(filename.split('/')[-1].split('_')[0]) + '_')
-    retailer_id, pos = retailer_df[retailer_df['filename'] == str(filename.split('/')[-1].split('_')[0]) + '_'][['id','pos']].iloc[0]
+    print(str(filename.split('/')[-1].split('_')[0]).lower() + '_')
+    retailer_id, pos = retailer_df[retailer_df['filename'].str.lower() == str(filename.split('/')[-1].split('_')[0]).lower() + '_'][['id','pos']].iloc[0]
     return retailer_id, pos
     
 def process_pos(input_filenames, output_filename):
