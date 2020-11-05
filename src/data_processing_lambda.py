@@ -103,8 +103,13 @@ class processTiger(processMPower):
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
 
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+
         # For both rt_product_type and rt_product_category turn deptid into category
         df['rt_product_type'] = df['rt_product_type'].apply(lambda x: 'BEER' if x == 3 else 'LIQUOR' if x == 2 else 'WINE' if x == 4 else 'EXTRAS')
+        # set rt_product_category to equal rt_product_type since both are determined from deptid is file
         df['rt_product_category'] = df['rt_product_type']
         
         # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
