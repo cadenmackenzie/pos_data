@@ -75,7 +75,7 @@ class processTiger(processMPower):
             'itemorder':'rt_brand_name',
             'itemname':'rt_brand_description',
             'deptid':'rt_product_type',
-            'deptid':'rt_product_category',
+            # 'deptid':'rt_product_category',
             'isize':'rt_package_size',
             'stdprice':'price_regular',
             'webprice':'price_sale',
@@ -105,7 +105,7 @@ class processTiger(processMPower):
 
         # For both rt_product_type and rt_product_category turn deptid into category
         df['rt_product_type'] = df['rt_product_type'].apply(lambda x: 'BEER' if x == 3 else 'LIQUOR' if x == 2 else 'WINE' if x == 4 else 'EXTRAS')
-        df['rt_product_category'] = df['rt_product_category'].apply(lambda x: 'BEER' if x == 3 else 'LIQUOR' if x == 2 else 'WINE' if x == 4 else 'EXTRAS')
+        df['rt_product_category'] = df['rt_product_type']
         
         # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
         if 'rt_item_size' not in df.columns:
