@@ -5,13 +5,13 @@ import boto3
 import uuid
 from urllib.parse import unquote_plus
 import pandas as pd
-import pysal.lib.io as ps
+# import pysal.lib.io as ps
 
 print('Loading Function')
 
 s3_client = boto3.client('s3')
 
-class processPOSNAME1Pos(object):
+class processMPower(object):
     def __init__(self):
         self.cols = [
             'rt_product_id','rt_upc_code','rt_brand_name',
@@ -60,73 +60,73 @@ class processPOSNAME1Pos(object):
         df = df[self.cols]
         return df
 
-class processPOSNAME2Pos(processPOSNAME1Pos):
-    def __init__(self):
-        self.col_names_dict = {
-            'code_num':'rt_product_id',
-            'barcode':'rt_upc_code',
-            'brand':'rt_brand_name',
-            'descrip':'rt_brand_description',
-            'typenam':'rt_product_type',
-            'typenam':'rt_product_category',
-            'size':'rt_package_size',
-            'price':'price_regular',
-            'qty_on_hnd':'qty_on_hand'
-        }
-        pass
+# class processPOSNAME2Pos(processPOSNAME1Pos):
+#     def __init__(self):
+#         self.col_names_dict = {
+#             'code_num':'rt_product_id',
+#             'barcode':'rt_upc_code',
+#             'brand':'rt_brand_name',
+#             'descrip':'rt_brand_description',
+#             'typenam':'rt_product_type',
+#             'typenam':'rt_product_category',
+#             'size':'rt_package_size',
+#             'price':'price_regular',
+#             'qty_on_hnd':'qty_on_hand'
+#         }
+#         pass
 
-    def read_dbf_files(self, input_filename): #Reads in DBF files and returns Pandas DF
-        '''
-        Arguments
-        ---------
-        dbfile  : DBF file - Input to be imported
-        adapted from: https://www.kaggle.com/jihyeseo/dbf-file-into-pandas-dataframe
-        '''
-        db = ps.open(input_filename) #Pysal to open DBF
-        d = {col: db.by_col(col) for col in db.header} #Convert dbf to dictionary
-        df = pd.DataFrame(d) #Convert to Pandas DF
-        db.close() 
-        return df
+#     def read_dbf_files(self, input_filename): #Reads in DBF files and returns Pandas DF
+#         '''
+#         Arguments
+#         ---------
+#         dbfile  : DBF file - Input to be imported
+#         adapted from: https://www.kaggle.com/jihyeseo/dbf-file-into-pandas-dataframe
+#         '''
+#         db = ps.open(input_filename) #Pysal to open DBF
+#         d = {col: db.by_col(col) for col in db.header} #Convert dbf to dictionary
+#         df = pd.DataFrame(d) #Convert to Pandas DF
+#         db.close() 
+#         return df
 
-    def load_data(self, input_filenames):
-        count = 0
-        for f in input_filenames:
-            if '.dbf' in f:
-                df = self.read_dbf_files(f)
-                if f == 'BARCODES.dbf':
-                    df = df[['CODE_NUM','BARCODE']]
-                elif f == 'LIQCODE.dbf':
-                    df.drop(['BARCODE'], axis=1, inplace=True)
+#     def load_data(self, input_filenames):
+#         count = 0
+#         for f in input_filenames:
+#             if '.dbf' in f:
+#                 df = self.read_dbf_files(f)
+#                 if f == 'BARCODES.dbf':
+#                     df = df[['CODE_NUM','BARCODE']]
+#                 elif f == 'LIQCODE.dbf':
+#                     df.drop(['BARCODE'], axis=1, inplace=True)
                     
-                if count == 0:
-                    final_df = df
-                else:
-                    if 'CODE_NUM' in final_df.columns and 'CODE_NUM' in df.columns:
-                        final_df = final_df.merge(df, on=['CODE_NUM'])
-                    else:
-                        raise Exception("Can't find unique key - expecting 'CODE_NUM' to be unique key.")
-                count += 1
-            else:
-                raise Exception("Unrecognized file type - expecting .dbf extension.")
-        return final_df
+#                 if count == 0:
+#                     final_df = df
+#                 else:
+#                     if 'CODE_NUM' in final_df.columns and 'CODE_NUM' in df.columns:
+#                         final_df = final_df.merge(df, on=['CODE_NUM'])
+#                     else:
+#                         raise Exception("Can't find unique key - expecting 'CODE_NUM' to be unique key.")
+#                 count += 1
+#             else:
+#                 raise Exception("Unrecognized file type - expecting .dbf extension.")
+#         return final_df
 
-    def process_data(self, df):
-        df.columns = df.columns.str.lower() # lower case column names
-        df.rename(columns=self.col_names_dict, inplace=True) # rename columns to standard naming for inventoryExtension
+#     def process_data(self, df):
+#         df.columns = df.columns.str.lower() # lower case column names
+#         df.rename(columns=self.col_names_dict, inplace=True) # rename columns to standard naming for inventoryExtension
 
-        # Create rt_brand_description as combo of brand and descrip
-        df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
+#         # Create rt_brand_description as combo of brand and descrip
+#         df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
 
-        # Check if sale_price in the dataframe if not then set all sale_price to 0
-        if 'sale_price' not in df.columns: 
-            df['sale_price'] = 0
+#         # Check if sale_price in the dataframe if not then set all sale_price to 0
+#         if 'sale_price' not in df.columns: 
+#             df['sale_price'] = 0
         
-        # Check if item_size in the dataframe if not then set all item_size to empty string 
-        if 'rt_item_size' not in df.columns:
-            df['item_size'] = ''
+#         # Check if item_size in the dataframe if not then set all item_size to empty string 
+#         if 'rt_item_size' not in df.columns:
+#             df['item_size'] = ''
         
-        df = [self.cols]
-        return df
+#         df = [self.cols]
+#         return df
 
 
 def get_retailer_info(filename):
@@ -139,17 +139,17 @@ def get_retailer_info(filename):
     print('Read from database time: {}(s)'.format(end - start))
 
     # Use the filename prefix/suffix to retrieve info POS and retailer_id of retailer --> file prefix must be unique
-    retailer_id, pos = retailer_df[retailer_df['filename'] == filename.split('_')[0]][['retailer_id','pos']].iloc[0]
+    retailer_id, pos = retailer_df[retailer_df['filename'] == str(filename.split('_')[0]) + '_'][['retailer_id','pos']].iloc[0]
     return retailer_id, pos
     
 def process_pos(input_filenames, output_filename):
     retailer_id, retailer_pos = get_retailer_info(input_filenames[0])
     
-    if retailer_pos == '1':
-        pos_proc = processPOSNAME1Pos()
+    if retailer_pos == 'mPower':
+        pos_proc = processMPower()
             
-    if retailer_pos == '2':
-        pos_proc = processPOSNAME2Pos()
+    # if retailer_pos == '2':
+    #     pos_proc = processPOSNAME2Pos()
 
     start = time.time()
     df = pos_proc.load_data(input_filenames)
