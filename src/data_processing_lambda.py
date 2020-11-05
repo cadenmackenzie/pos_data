@@ -49,13 +49,13 @@ class processMPower(object):
     def process_data(self, df):
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
-        # Check if sale_price in the dataframe if not then set all sale_price to 0
-        if 'sale_price' not in df.columns: 
-            df['sale_price'] = 0
+        # Check if price_sale in the dataframe if not then set all price_sale to 0
+        if 'price_sale' not in df.columns: 
+            df['price_sale'] = 0
         
-        # Check if item_size in the dataframe if not then set all item_size to empty string 
+        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
         if 'rt_item_size' not in df.columns:
-            df['item_size'] = ''
+            df['rt_item_size'] = ''
         
         df = df[self.cols]
         return df
@@ -139,7 +139,9 @@ def get_retailer_info(filename):
     print('Read from database time: {}(s)'.format(end - start))
 
     # Use the filename prefix/suffix to retrieve info POS and retailer_id of retailer --> file prefix must be unique
-    retailer_id, pos = retailer_df[retailer_df['filename'] == str(filename.split('_')[0]) + '_'][['retailer_id','pos']].iloc[0]
+    print(filename)
+    print(str(filename.split('/')[-1].split('_')[0]) + '_')
+    retailer_id, pos = retailer_df[retailer_df['filename'] == str(filename.split('/')[-1].split('_')[0]) + '_'][['id','pos']].iloc[0]
     return retailer_id, pos
     
 def process_pos(input_filenames, output_filename):
@@ -174,17 +176,17 @@ def lambda_handler(event, context):
         bucket = record['s3']['bucket']['name']
         key = unquote_plus(record['s3']['object']['key'], encoding='utf-8')
         tmpkey = key.replace('/', '')
-        download_path = '/tmp/{}_{}'.format(uuid.uuid4(), tmpkey)
+        download_path = '/tmp/{}_{}'.format(tmpkey, uuid.uuid4())
         upload_path = '/tmp/processed-{}'.format(tmpkey)
         
         # Download file from S3 set as the trigger ('handoff-pos-raw')
         s3_client.download_file(bucket, key, download_path)
         
         # Process data using pos_processing function above
-        process_pos(download_path, upload_path)
+        process_pos([download_path], upload_path)
         
         # Upload processed file to different S3 bucket ('handoff-pos-processed')
-        s3_client.upload_file(upload_path, bucket.replace('raw','processed'), key)
+        s3_client.upload_file(upload_path, bucket.replace('raw','processed'), "processed_" + key)
 
     end = time.time()
     print(f'Final lambda runtime: {end - start}(s)')
