@@ -60,7 +60,111 @@ class processMPower(object):
         df = df[self.cols]
         return df
 
-# class processPOSNAME2Pos(processPOSNAME1Pos):
+
+class processTiger(processMPower):
+    def __init__(self):
+        super(processTiger, self).__init__()
+        self.col_names_dict = {
+            'itemid':'rt_product_id',
+            'itemscanid':'rt_upc_code',
+            'itemorder':'rt_brand_name',
+            'itemname':'rt_brand_description',
+            'deptid':'rt_product_type',
+            # 'deptid':'rt_product_category',
+            'isize':'rt_package_size',
+            'stdprice':'price_regular',
+            'webprice':'price_sale',
+            'qtyonhand':'qty_on_hand'
+        }
+        pass
+    
+    def load_data(self, input_filenames):
+        # Check if input input_filenames is list
+        if not isinstance(input_filenames, list):
+            raise Exception("input_filenames is not a list - expecting input_filenames to be a list with single .csv file.")
+        
+        # Check if input input_filenames is list  
+        if len(input_filenames) > 1:
+            raise Exception("More than one file passed - expecting a single .csv file in input_filenames.")
+        
+        if '.csv' in input_filenames[0]:
+            df = pd.read_csv(input_filenames[0], sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .csv extension.")
+        pass
+
+    def process_data(self, df):
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+
+        # For both rt_product_type and rt_product_category turn deptid into category
+        df['rt_product_type'] = df['rt_product_type'].astype(str).apply(lambda x: 'BEER' if x == '3' \
+                                                                        else 'LIQUOR' if x == '2' \
+                                                                        else 'WINE' if x == '4' \
+                                                                        else 'EXTRAS')
+
+        # set rt_product_category to equal rt_product_type since both are determined from deptid is file
+        df['rt_product_category'] = df['rt_product_type']
+        
+        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
+        if 'rt_item_size' not in df.columns:
+            df['rt_item_size'] = ''
+        
+        df = df[self.cols]
+        return df
+
+
+class processAdvent(processTiger):
+    def __init__(self):
+        super(processAdvent, self).__init__()
+        self.col_names_dict = {
+            'sku':'rt_product_id',
+            'mainupc':'rt_upc_code',
+            'itemname':'rt_brand_name',
+            'description':'rt_brand_description',
+            'depid':'rt_product_type',
+            # 'depid':'rt_product_category',
+            'keyword':'rt_package_size', # are we sure about this???
+            'priceperunit':'price_regular',
+            'currentcost':'price_sale', # This should be CURRENTCOST or ISSERIALIZED
+            'instoreqty':'qty_on_hand'
+        }
+        pass
+
+    def process_data(self, df):
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+
+        # Get rt_package_size from first element of string (seperated by ',') in 'KEYWORD' column in file
+        df['rt_package_size'] = df['rt_package_size'].str.split(',').str[0]
+
+        # For both rt_product_type and rt_product_category turn depid into category
+        df['rt_product_type'] = df['rt_product_type'].astype(str).apply(lambda x: 'BEER' if x == '5' \
+                                                                        else 'LIQUOR' if x == '1' \
+                                                                        else 'WINE' if x == '2' \
+                                                                        else 'EXTRAS')
+
+        # set rt_product_category to equal rt_product_type since both are determined from depid is file
+        df['rt_product_category'] = df['rt_product_type']
+        
+        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
+        if 'rt_item_size' not in df.columns:
+            df['rt_item_size'] = ''
+        
+        df = df[self.cols]
+        return df
+
+
+# class processPOSNAME2Pos(processMPower):
 #     def __init__(self):
 #         self.col_names_dict = {
 #             'code_num':'rt_product_id',
@@ -140,18 +244,22 @@ def get_retailer_info(filename):
 
     # Use the filename prefix/suffix to retrieve info POS and retailer_id of retailer --> file prefix must be unique
     print(filename)
-    print(str(filename.split('/')[-1].split('_')[0]) + '_')
-    retailer_id, pos = retailer_df[retailer_df['filename'] == str(filename.split('/')[-1].split('_')[0]) + '_'][['id','pos']].iloc[0]
+    print(str(filename.split('/')[-1].split('_')[0]).lower() + '_')
+    retailer_id, pos = retailer_df[retailer_df['filename'].str.lower() == str(filename.split('/')[-1].split('_')[0]).lower() + '_'][['id','pos']].iloc[0]
     return retailer_id, pos
     
 def process_pos(input_filenames, output_filename):
     retailer_id, retailer_pos = get_retailer_info(input_filenames[0])
     
-    if retailer_pos == 'mPower':
+    # Check what pos the retailer has in the retailer table on RDS and use the appropriate pos processing class
+    if retailer_pos.lower() == 'mpower':
         pos_proc = processMPower()
-            
-    # if retailer_pos == '2':
-    #     pos_proc = processPOSNAME2Pos()
+
+    elif retailer_pos.lower() == 'tiger':
+        pos_proc = processTiger()
+        
+    elif retailer_pos.lower() == 'advent':
+        pos_proc = processAdvent()
 
     start = time.time()
     df = pos_proc.load_data(input_filenames)
@@ -194,20 +302,3 @@ def lambda_handler(event, context):
         'statusCode': 200,
         'body': json.dumps('Success!')
     }
-
-
-
-# def lambda_handler(event, context):
-#     #print("Received event: " + json.dumps(event, indent=2))
-
-#     # Get the object from the event and show its content type
-#     bucket = event['Records'][0]['s3']['bucket']['name']
-#     key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
-#     try:
-#         response = s3_client.get_object(Bucket=bucket, Key=key)
-#         print("CONTENT TYPE: " + response['ContentType'])
-#         return response['ContentType']
-#     except Exception as e:
-#         print(e)
-#         print('Error getting object {} from bucket {}. Make sure they exist and your bucket is in the same region as this function.'.format(key, bucket))
-#         raise e
