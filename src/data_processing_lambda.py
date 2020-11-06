@@ -63,6 +63,7 @@ class processMPower(object):
 
 class processTiger(processMPower):
     def __init__(self):
+        super(processTiger, self).__init__()
         self.col_names_dict = {
             'itemid':'rt_product_id',
             'itemscanid':'rt_upc_code',
@@ -102,7 +103,10 @@ class processTiger(processMPower):
         df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
 
         # For both rt_product_type and rt_product_category turn deptid into category
-        df['rt_product_type'] = df['rt_product_type'].apply(lambda x: 'BEER' if x == 3 else 'LIQUOR' if x == 2 else 'WINE' if x == 4 else 'EXTRAS')
+        df['rt_product_type'] = df['rt_product_type'].astype(str).apply(lambda x: 'BEER' if x == '3' \
+                                                                        else 'LIQUOR' if x == '2' \
+                                                                        else 'WINE' if x == '4' \
+                                                                        else 'EXTRAS')
 
         # set rt_product_category to equal rt_product_type since both are determined from deptid is file
         df['rt_product_category'] = df['rt_product_type']
@@ -117,6 +121,7 @@ class processTiger(processMPower):
 
 class processAdvent(processTiger):
     def __init__(self):
+        super(processAdvent, self).__init__()
         self.col_names_dict = {
             'sku':'rt_product_id',
             'mainupc':'rt_upc_code',
@@ -143,9 +148,10 @@ class processAdvent(processTiger):
         df['rt_package_size'] = df['rt_package_size'].str.split(',').str[0]
 
         # For both rt_product_type and rt_product_category turn depid into category
-        df['rt_product_type'] = df['rt_product_type'].apply(lambda x: 'BEER' if x == 5 \
-                                                            else 'LIQUOR' if x == 1 \
-                                                            else 'WINE' if x == 2 else 'EXTRAS')
+        df['rt_product_type'] = df['rt_product_type'].astype(str).apply(lambda x: 'BEER' if x == '5' \
+                                                                        else 'LIQUOR' if x == '1' \
+                                                                        else 'WINE' if x == '2' \
+                                                                        else 'EXTRAS')
 
         # set rt_product_category to equal rt_product_type since both are determined from depid is file
         df['rt_product_category'] = df['rt_product_type']
