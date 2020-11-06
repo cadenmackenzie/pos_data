@@ -1,11 +1,14 @@
+import sys
+import os
 import time
 import requests
 import json
 import boto3
-import uuid
 from urllib.parse import unquote_plus
 import pandas as pd
-# import pysal.lib.io as ps
+from glob import glob
+from zipfile import ZipFile
+from dbfread import DBF
 
 print('Loading Function')
 
@@ -31,24 +34,29 @@ class processMPower(object):
         pass
     
     def load_data(self, input_filenames):
-        # Check if input input_filenames is list
-        if not isinstance(input_filenames, list):
-            raise Exception("input_filenames is not a list - expecting input_filenames to be a list with single .csv file.")
-        
-        # Check if input input_filenames is list  
-        if len(input_filenames) > 1:
-            raise Exception("More than one file passed - expecting a single .csv file in input_filenames.")
-        
-        if '.csv' in input_filenames[0]:
-            df = pd.read_csv(input_filenames[0]) # read in filename as str
+        if '.csv' in input_filenames:
+            df = pd.read_csv(input_filenames) # read in filename as str
             return df
         else:
-            raise Exception("Unrecognized file type - expecting .csv extension.")
+            raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
         pass
+
+    def _check_data_types(self, df, numeric_cols = ['rt_product_id','price_regular','price_sale','qty_on_hand']):
+        for c in df.columns:
+            if c in numeric_cols:
+                df[c] = pd.to_numeric(df[c], errors='coerce').astype(float)
+                df[c] = df[c].fillna(0)
+            else:
+                df[c] = df[c].fillna('').astype(str)
+        return df 
 
     def process_data(self, df):
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+
         # Check if price_sale in the dataframe if not then set all price_sale to 0
         if 'price_sale' not in df.columns: 
             df['price_sale'] = 0
@@ -56,7 +64,8 @@ class processMPower(object):
         # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
         if 'rt_item_size' not in df.columns:
             df['rt_item_size'] = ''
-        
+
+        df = self._check_data_types(df)
         df = df[self.cols]
         return df
 
@@ -78,20 +87,12 @@ class processTiger(processMPower):
         }
         pass
     
-    def load_data(self, input_filenames):
-        # Check if input input_filenames is list
-        if not isinstance(input_filenames, list):
-            raise Exception("input_filenames is not a list - expecting input_filenames to be a list with single .csv file.")
-        
-        # Check if input input_filenames is list  
-        if len(input_filenames) > 1:
-            raise Exception("More than one file passed - expecting a single .csv file in input_filenames.")
-        
-        if '.csv' in input_filenames[0]:
-            df = pd.read_csv(input_filenames[0], sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
+    def load_data(self, input_filenames):        
+        if '.csv' in input_filenames:
+            df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
             return df
         else:
-            raise Exception("Unrecognized file type - expecting .csv extension.")
+            raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
         pass
 
     def process_data(self, df):
@@ -115,6 +116,7 @@ class processTiger(processMPower):
         if 'rt_item_size' not in df.columns:
             df['rt_item_size'] = ''
         
+        df = self._check_data_types(df)
         df = df[self.cols]
         return df
 
@@ -131,7 +133,7 @@ class processAdvent(processTiger):
             # 'depid':'rt_product_category',
             'keyword':'rt_package_size', # are we sure about this???
             'priceperunit':'price_regular',
-            'currentcost':'price_sale', # This should be CURRENTCOST or ISSERIALIZED
+            'isserialized':'price_sale', # This should be CURRENTCOST or ISSERIALIZED
             'instoreqty':'qty_on_hand'
         }
         pass
@@ -155,82 +157,114 @@ class processAdvent(processTiger):
 
         # set rt_product_category to equal rt_product_type since both are determined from depid is file
         df['rt_product_category'] = df['rt_product_type']
+
+        # Fill in sale price with 0 if it is not a digit
+        df['price_sale'] = pd.to_numeric(df['price_sale'], errors='coerce')
+        df['price_sale'] = df['price_sale'].fillna(0).astype(float)
         
         # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
         if 'rt_item_size' not in df.columns:
             df['rt_item_size'] = ''
         
+        df = self._check_data_types(df)
         df = df[self.cols]
         return df
 
 
-# class processPOSNAME2Pos(processMPower):
-#     def __init__(self):
-#         self.col_names_dict = {
-#             'code_num':'rt_product_id',
-#             'barcode':'rt_upc_code',
-#             'brand':'rt_brand_name',
-#             'descrip':'rt_brand_description',
-#             'typenam':'rt_product_type',
-#             'typenam':'rt_product_category',
-#             'size':'rt_package_size',
-#             'price':'price_regular',
-#             'qty_on_hnd':'qty_on_hand'
-#         }
-#         pass
+class processLiquorPos(processMPower):
+    def __init__(self):
+        super(processLiquorPos, self).__init__()
+        self.col_names_dict = {
+            'code_num':'rt_product_id',
+            'barcode':'rt_upc_code',
+            'brand':'rt_brand_name',
+            'descrip':'rt_brand_description',
+            'typenam':'rt_product_type',
+            # 'typenam':'rt_product_category',
+            'size':'rt_package_size',
+            'price':'price_regular',
+            'qty_on_hnd':'qty_on_hand'
+        }
+        pass
 
-#     def read_dbf_files(self, input_filename): #Reads in DBF files and returns Pandas DF
-#         '''
-#         Arguments
-#         ---------
-#         dbfile  : DBF file - Input to be imported
-#         adapted from: https://www.kaggle.com/jihyeseo/dbf-file-into-pandas-dataframe
-#         '''
-#         db = ps.open(input_filename) #Pysal to open DBF
-#         d = {col: db.by_col(col) for col in db.header} #Convert dbf to dictionary
-#         df = pd.DataFrame(d) #Convert to Pandas DF
-#         db.close() 
-#         return df
+    def read_dbf_files(self, input_filename): #Reads in DBF files and returns Pandas DF
+        '''
+        Arguments
+        ---------
+        dbfile  : DBF file - Input to be imported
+        adapted from: https://stackoverflow.com/questions/41898561/pandas-transform-a-dbf-table-into-a-dataframe
+        '''
+        dbf = DBF(input_filename, ignore_missing_memofile=True)
+        df = pd.DataFrame(iter(dbf))
+        return df
 
-#     def load_data(self, input_filenames):
-#         count = 0
-#         for f in input_filenames:
-#             if '.dbf' in f:
-#                 df = self.read_dbf_files(f)
-#                 if f == 'BARCODES.dbf':
-#                     df = df[['CODE_NUM','BARCODE']]
-#                 elif f == 'LIQCODE.dbf':
-#                     df.drop(['BARCODE'], axis=1, inplace=True)
-                    
-#                 if count == 0:
-#                     final_df = df
-#                 else:
-#                     if 'CODE_NUM' in final_df.columns and 'CODE_NUM' in df.columns:
-#                         final_df = final_df.merge(df, on=['CODE_NUM'])
-#                     else:
-#                         raise Exception("Can't find unique key - expecting 'CODE_NUM' to be unique key.")
-#                 count += 1
-#             else:
-#                 raise Exception("Unrecognized file type - expecting .dbf extension.")
-#         return final_df
+    def extract_files(self, file_path):
+        '''
+        Adapted from https://stackoverflow.com/questions/56786321/read-multiple-csv-files-zipped-in-one-file
+        '''
+        with ZipFile(file_path, "r") as z:
+            z.extractall("/tmp/")
+        unzipped_path = file_path.replace('/var/task/','/tmp/').replace('.zip','')
+        file_paths = glob(unzipped_path+'/*.dbf')
+        return file_paths
 
-#     def process_data(self, df):
-#         df.columns = df.columns.str.lower() # lower case column names
-#         df.rename(columns=self.col_names_dict, inplace=True) # rename columns to standard naming for inventoryExtension
+    def load_data(self, input_filenames):
+        count = 0
+        if '.zip' in input_filenames:
+            # Read .zip file
+            file_paths = self.extract_files(input_filenames)
+            # iterate through files in .zip file and read into pandas dataframe
+            for f in file_paths:
+                if '/BARCODES.dbf' in f:
+                    df = self.read_dbf_files(f)
+                    df = df[['CODE_NUM','BARCODE']]
+                elif '/LIQCODE.dbf' in f:
+                    df = self.read_dbf_files(f)
+                    df.drop(['BARCODE'], axis=1, inplace=True)
+                else:
+                    continue
 
-#         # Create rt_brand_description as combo of brand and descrip
-#         df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
+                if count == 0:
+                    final_df = df
+                elif count > 0:
+                    if 'CODE_NUM' in final_df.columns and 'CODE_NUM' in df.columns:
+                        final_df = final_df.merge(df, on=['CODE_NUM'])
+                    else:
+                        raise Exception("Can't find unique key - expecting 'CODE_NUM' to be unique key.")
+                count += 1
+        else:
+            raise Exception("Unrecognized file type - expecting .zip of .dbf files")
+        return final_df
 
-#         # Check if sale_price in the dataframe if not then set all sale_price to 0
-#         if 'sale_price' not in df.columns: 
-#             df['sale_price'] = 0
+    def process_data(self, df):
+        df.columns = df.columns.str.lower() # lower case column names
+        df.rename(columns=self.col_names_dict, inplace=True) # rename columns to standard naming for inventoryExtension
+
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+
+        # make rt_product_category == rt_product_type since pulling from same column in file
+        df['rt_product_category'] = df['rt_product_type']
+
+        # Create rt_brand_description as combo of brand and descrip
+        df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
+
+        # # Fill np.nan qty_on_hand with 0
+        # df['qty_on_hand'] = df['qty_on_hand'].fillna(0)
+        # df['qty_on_hand'] = df['qty_on_hand'].apply(lambda x: float(x) if str(x).isdigit() else 0) # replace non-digits with zero
+
+        # Check if sale_price in the dataframe if not then set all sale_price to 0
+        if 'price_sale' not in df.columns: 
+            df['price_sale'] = 0
         
-#         # Check if item_size in the dataframe if not then set all item_size to empty string 
-#         if 'rt_item_size' not in df.columns:
-#             df['item_size'] = ''
+        # Check if item_size in the dataframe if not then set all item_size to empty string 
+        if 'rt_item_size' not in df.columns:
+            df['rt_item_size'] = ''
         
-#         df = [self.cols]
-#         return df
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
 
 
 def get_retailer_info(filename):
@@ -249,7 +283,7 @@ def get_retailer_info(filename):
     return retailer_id, pos
     
 def process_pos(input_filenames, output_filename):
-    retailer_id, retailer_pos = get_retailer_info(input_filenames[0])
+    retailer_id, retailer_pos = get_retailer_info(input_filenames)
     
     # Check what pos the retailer has in the retailer table on RDS and use the appropriate pos processing class
     if retailer_pos.lower() == 'mpower':
@@ -261,8 +295,11 @@ def process_pos(input_filenames, output_filename):
     elif retailer_pos.lower() == 'advent':
         pos_proc = processAdvent()
 
+    elif retailer_pos.lower() == 'liquorpos':
+        pos_proc = processLiquorPos()
+
     start = time.time()
-    df = pos_proc.load_data(input_filenames)
+    df = pos_proc.load_data(input_filenames) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
     
     # Processing for all POS systems
@@ -284,18 +321,21 @@ def lambda_handler(event, context):
         bucket = record['s3']['bucket']['name']
         key = unquote_plus(record['s3']['object']['key'], encoding='utf-8')
         tmpkey = key.replace('/', '')
-        download_path = '/tmp/{}_{}'.format(tmpkey, uuid.uuid4())
-        upload_path = '/tmp/processed-{}'.format(tmpkey)
+        download_path = '/tmp/{}'.format(tmpkey)
+        upload_path = '/tmp/processed-{}'.format(tmpkey).replace('.zip','.csv')
+
+        print('upload path', upload_path)
         
         # Download file from S3 set as the trigger ('handoff-pos-raw')
         s3_client.download_file(bucket, key, download_path)
         
         # Process data using pos_processing function above
-        process_pos([download_path], upload_path)
+        process_pos(download_path, upload_path)
         
         # Upload processed file to different S3 bucket ('handoff-pos-processed')
-        s3_client.upload_file(upload_path, bucket.replace('raw','processed'), "processed_" + key)
+        s3_client.upload_file(upload_path, bucket.replace('raw','processed'), "processed_" + key.replace('.zip','.csv'))
 
+    print('Function Complete')
     end = time.time()
     print(f'Final lambda runtime: {end - start}(s)')
     return {
