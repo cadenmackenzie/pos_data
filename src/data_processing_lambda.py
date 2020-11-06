@@ -245,14 +245,15 @@ def get_retailer_info(filename):
 def process_pos(input_filenames, output_filename):
     retailer_id, retailer_pos = get_retailer_info(input_filenames[0])
     
+    # Check what pos the retailer has in the retailer table on RDS and use the appropriate pos processing class
     if retailer_pos.lower() == 'mpower':
         pos_proc = processMPower()
 
-    if retailer_pos.lower() == 'tiger':
+    elif retailer_pos.lower() == 'tiger':
         pos_proc = processTiger()
-            
-    # if retailer_pos == '2':
-    #     pos_proc = processPOSNAME2Pos()
+        
+    elif retailer_pos.lower() == 'advent':
+        pos_proc = processAdvent()
 
     start = time.time()
     df = pos_proc.load_data(input_filenames)
