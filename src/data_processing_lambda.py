@@ -9,6 +9,7 @@ import pandas as pd
 from glob import glob
 from zipfile import ZipFile
 from dbfread import DBF
+import datetime
 
 print('Loading Function')
 
@@ -276,10 +277,10 @@ def get_retailer_info(filename):
     end = time.time()
     print('Read from database time: {}(s)'.format(end - start))
 
-    # Use the filename prefix/suffix to retrieve info POS and retailer_id of retailer --> file prefix must be unique
-    print(filename)
-    print(str(filename.split('/')[-1].split('_')[0]).lower() + '_')
-    retailer_id, pos = retailer_df[retailer_df['filename'].str.lower() == str(filename.split('/')[-1].split('_')[0]).lower() + '_'][['id','pos']].iloc[0]
+    # Use the filename to retrieve info POS and retailer_id of retailer --> filename must be unique
+    print(f'Filename:{filename}')
+    retailer_id, pos, retailer_name = retailer_df[retailer_df['filename'].str.lower() == str(filename).lower()][['id','pos','name']].iloc[0]
+    print(f'Retailer Name: {retailer_name}, Retailer ID:{retailer_id}, POS system:{pos}')
     return retailer_id, pos
     
 def process_pos(input_filenames, output_filename):
@@ -333,7 +334,8 @@ def lambda_handler(event, context):
         process_pos(download_path, upload_path)
         
         # Upload processed file to different S3 bucket ('handoff-pos-processed')
-        s3_client.upload_file(upload_path, bucket.replace('raw','processed'), "processed_" + key.replace('.zip','.csv'))
+        datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        s3_client.upload_file(upload_path, bucket.replace('raw','processed'), datetime+ "-" + key.replace('.zip','.csv'))
 
     print('Function Complete')
     end = time.time()
