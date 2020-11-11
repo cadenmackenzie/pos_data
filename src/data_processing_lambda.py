@@ -334,8 +334,8 @@ def lambda_handler(event, context):
         process_pos(download_path, upload_path)
         
         # Upload processed file to different S3 bucket ('handoff-pos-processed')
-        datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        s3_client.upload_file(upload_path, bucket.replace('raw','processed'), datetime+ "-" + key.replace('.zip','.csv'))
+        date_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        s3_client.upload_file(upload_path, bucket.replace('raw','processed'), date_time+ "-" + key.replace('.zip','.csv'))
 
     print('Function Complete')
     end = time.time()
