@@ -30,7 +30,7 @@ The purpose of this AWS lambda function is to process pos data exports into stan
     * Generate [requirements.txt](./src/requirements.txt) - I recommend using [pipreqs](https://github.com/bndr/pipreqs) to generate requirements.txt. Pipreqs will help avoid including any unnecessary packages etc.
 
 2. Generate site-packages from requirements.txt (these will be saved in directory named python) using Docker Amazon Linux 2.0 container. This will ensure site-package compatiability with AWS Lambda.
-    * ATTENTION: This step may not be necessary if you are developing in a linux environment. Otherwise, create a virtual enviroment in linux enviroment rename the site-packages directory as python and move on to step 3.
+    * **ATTENTION: This step may not be necessary if you are developing in a linux environment.** Otherwise, create a virtual enviroment in your linux enviroment rename the site-packages directory as python and move on to step 3.
     * Run [get_layer_packages.sh](./src/get_layer_packages.sh) - you will need to install [Docker](https://docs.docker.com/get-docker/) if you don't already have it.
     * Here are more [detailed instructions](https://medium.com/@qtangs/creating-new-aws-lambda-layer-for-python-pandas-library-348b126e9f3e) for generating site-packages using Docker container. Focus on steps 1 - 4 on the article.  
 
