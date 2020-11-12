@@ -25,9 +25,9 @@ The purpose of this AWS lambda function is to process pos data exports into stan
 
 ### Deploy
 1. Generate requirements.txt with all necessary dependencies required to run lambda function.
-    * [Generate requirements.txt](https://github.com/bndr/pipreqs) - I recommend using pipreqs to generate requirements.txt just for dependencies necessary to run lambda python script
+    * Generate [requirements.txt](./src/requirements.txt) - I recommend using [pipreqs](https://github.com/bndr/pipreqs) to generate requirements.txt. Pipreqs will help avoid including any unnecessary packages etc.
 
-2. Generate site-packages from requirements.txt (save in directory named python) using Docker Amazon Linux 2.0 container. This will ensure site-package compatiability with AWS Lambda.
+2. Generate site-packages from requirements.txt (these will be saved in directory named python) using Docker Amazon Linux 2.0 container. This will ensure site-package compatiability with AWS Lambda.
     * [Generate site-packages](https://medium.com/@qtangs/creating-new-aws-lambda-layer-for-python-pandas-library-348b126e9f3e) - Run get_layer_packages.sh (you will need to install [Docker](https://docs.docker.com/get-docker/) if you don't have it).
 
 3. Zip site-packages folder named python.  
