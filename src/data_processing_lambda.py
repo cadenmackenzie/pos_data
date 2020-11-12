@@ -270,7 +270,8 @@ class processLiquorPos(processMPower):
 
 def get_retailer_info(filename):
     start = time.time()
-    r = requests.get("https://development.handofftech.com/v2/util/retailers?apiKey=836804e3-928a-4454-b064-485848cc6336") # TODO: get endpoint from Caden --> pull retailer info and match with prefix of filename
+    print('Pulling Retailer Info')
+    r = requests.get("https://development.handofftech.com/v2/util/retailers?apiKey=836804e3-928a-4454-b064-485848cc6336") # TODO: get endpoint from Caden --> pull retailer info and match with filename
     
     # Read return into pandas dataframe
     retailer_df = pd.DataFrame.from_dict(r.json()['data'])
@@ -278,14 +279,22 @@ def get_retailer_info(filename):
     print('Read from database time: {}(s)'.format(end - start))
 
     # Use the filename to retrieve info POS and retailer_id of retailer --> filename must be unique
-    print(f'Filename:{filename}')
-    retailer_id, pos, retailer_name = retailer_df[retailer_df['filename'].str.lower() == str(filename).lower()][['id','pos','name']].iloc[0]
-    print(f'Retailer Name: {retailer_name}, Retailer ID:{retailer_id}, POS system:{pos}')
-    return retailer_id, pos
+    try:
+        retailer_id, pos, retailer_name = retailer_df[retailer_df['filename'].str.lower() == str(filename).lower()][['id','pos','name']].iloc[0]
+        print(f"Filename:{str(filename).lower()} found info for retailer:\n\tRetailer Name: {retailer_name}, Retailer ID:{retailer_id}, POS system:{pos}")
+        return retailer_id, pos
+
+    # Throw exception if filename is not found in reatiler_df
+    except:
+        raise Exception(f"[ERROR]: Filename '{str(filename).lower()}' not found. Please make sure {str(filename).lower()} with reatailer_id and pos is a value in retailer table in DB.")
     
-def process_pos(input_filenames, output_filename):
-    retailer_id, retailer_pos = get_retailer_info(input_filenames)
-    
+def process_pos(input_filename, output_filename):
+    # remove /tmp/ from input_filename
+    input_filename = str(input_filename).split('/')[-1]
+
+    # pass input_filename to get_retailer_info to get retailer_id and retailer pos info
+    retailer_id, retailer_pos = get_retailer_info(input_filename)
+
     # Check what pos the retailer has in the retailer table on RDS and use the appropriate pos processing class
     if retailer_pos.lower() == 'mpower':
         pos_proc = processMPower()
@@ -300,7 +309,7 @@ def process_pos(input_filenames, output_filename):
         pos_proc = processLiquorPos()
 
     start = time.time()
-    df = pos_proc.load_data(input_filenames) # load function for specific POS system
+    df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
     
     # Processing for all POS systems
@@ -325,7 +334,7 @@ def lambda_handler(event, context):
         download_path = '/tmp/{}'.format(tmpkey)
         upload_path = '/tmp/processed-{}'.format(tmpkey).replace('.zip','.csv')
 
-        print('upload path', upload_path)
+        print(f'{download_path} has been loaded to {bucket}.')
         
         # Download file from S3 set as the trigger ('handoff-pos-raw')
         s3_client.download_file(bucket, key, download_path)
