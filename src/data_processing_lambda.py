@@ -33,14 +33,6 @@ class processMPower(object):
             'package_size':'rt_package_size',
         }
         pass
-    
-    def load_data(self, input_filenames):
-        if '.csv' in input_filenames:
-            df = pd.read_csv(input_filenames) # read in filename as str
-            return df
-        else:
-            raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
-        pass
 
     def _check_data_types(self, df, numeric_cols = ['rt_product_id','price_regular','price_sale','qty_on_hand']):
         for c in df.columns:
@@ -49,7 +41,15 @@ class processMPower(object):
                 df[c] = df[c].fillna(0)
             else:
                 df[c] = df[c].fillna('').astype(str)
-        return df 
+        return df
+
+    def load_data(self, input_filenames):
+        if '.csv' in input_filenames:
+            df = pd.read_csv(input_filenames) # read in filename as str
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
+        pass
 
     def process_data(self, df):
         df.columns = df.columns.str.lower()
