@@ -5,11 +5,13 @@ import requests
 import json
 import boto3
 from urllib.parse import unquote_plus
-import pandas as pd
 from glob import glob
 from zipfile import ZipFile
 from dbfread import DBF
 import datetime
+import pandas as pd
+pd.options.mode.chained_assignment = None  # default='warn'
+
 
 print('Loading Function')
 
@@ -31,6 +33,7 @@ class processMPower(object):
             'product_type':'rt_product_type',
             'product_category':'rt_product_category',
             'package_size':'rt_package_size',
+            'sale_price':'price_sale'
         }
         pass
 
@@ -272,7 +275,7 @@ def get_retailer_info(filename):
     start = time.time()
     print('Pulling Retailer Info')
     r = requests.get("https://development.handofftech.com/v2/util/retailers?apiKey=836804e3-928a-4454-b064-485848cc6336") # TODO: get endpoint from Caden --> pull retailer info and match with filename
-    
+    print('Reponse Status: ', r)
     # Read return into pandas dataframe
     retailer_df = pd.DataFrame.from_dict(r.json()['data'])
     end = time.time()
@@ -280,8 +283,10 @@ def get_retailer_info(filename):
 
     # Use the filename to retrieve info POS and retailer_id of retailer --> filename must be unique
     try:
+        # remove /tmp/ from input_filename
+        filename = str(filename).split('/')[-1]
         retailer_id, pos, retailer_name = retailer_df[retailer_df['filename'].str.lower() == str(filename).lower()][['id','pos','name']].iloc[0]
-        print(f"Filename:{str(filename).lower()} found info for retailer:\n\tRetailer Name: {retailer_name}, Retailer ID:{retailer_id}, POS system:{pos}")
+        print(f"Filename:{str(filename).lower()} found info for retailer:\n\tRetailer Name: {retailer_name}, Retailer ID: {retailer_id}, POS system: {pos}")
         return retailer_id, pos
 
     # Throw exception if filename is not found in reatiler_df
@@ -289,9 +294,6 @@ def get_retailer_info(filename):
         raise Exception(f"[ERROR]: Filename '{str(filename).lower()}' not found. Please make sure {str(filename).lower()} with reatailer_id and pos is a value in retailer table in DB.")
     
 def process_pos(input_filename, output_filename):
-    # remove /tmp/ from input_filename
-    input_filename = str(input_filename).split('/')[-1]
-
     # pass input_filename to get_retailer_info to get retailer_id and retailer pos info
     retailer_id, retailer_pos = get_retailer_info(input_filename)
 
