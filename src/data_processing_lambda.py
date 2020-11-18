@@ -10,6 +10,7 @@ from zipfile import ZipFile
 from dbfread import DBF
 import datetime
 import pandas as pd
+from parse_string_class import PackageConfigurationParsing
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
