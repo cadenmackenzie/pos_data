@@ -3,7 +3,7 @@ import re
 import numpy as np
 import pandas as pd
 
-class PackageConfigurationParsing(object):
+class PackageConfigurationParser(object):
     '''
 Welcome to the StringParsing Class. This is a class for parsing strings to extract relvant information. 
 This class is used in conjunction with the inventory linking classes to match inventory extension to 
@@ -151,10 +151,10 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+LBS', str(string).upper())
         if m != None:
-            return float(m.group(0).replace('LBS','')), 'LBS'
+            return float(m.group(0).replace('LBS','')), 'LB'
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.LBS', str(string).upper())
         if m != None:
-            return float(m.group(0).replace('LBS','')), 'LBS'
+            return float(m.group(0).replace('LBS','')), 'LB'
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+LB', str(string).upper())
         if m != None:
@@ -215,20 +215,20 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         if m != None:
             return float(m.group(0).replace('GL','')), 'GAL'
 
-        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+G', str(string).upper())
-        if m != None:
-            try:
-                return float(m.group(0).replace('G','')), 'GAL'
-            except:
-                print('ERROR: ', m.group(0).replace('G',''), 'GAL')
-                return np.nan, 'GAL' 
-        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.G', str(string).upper())
-        if m != None:
-            try:
-                return float(m.group(0).replace('G','')), 'GAL'
-            except:
-                print('ERROR: ', m.group(0).replace('G',''), 'GAL')
-                return np.nan, 'GAL' 
+        # m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+G', str(string).upper())
+        # if m != None:
+        #     try:
+        #         return float(m.group(0).replace('G','')), 'GAL'
+        #     except:
+        #         print('ERROR: ', m.group(0).replace('G',''), 'GAL')
+        #         return np.nan, 'GAL' 
+        # m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.G', str(string).upper())
+        # if m != None:
+        #     try:
+        #         return float(m.group(0).replace('G','')), 'GAL'
+        #     except:
+        #         print('ERROR: ', m.group(0).replace('G',''), 'GAL')
+        #         return np.nan, 'GAL' 
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+LT', str(string).upper())
         if m != None:
@@ -274,7 +274,7 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
             return 1.75, 'L'
         if '1.5' in str(string).upper():
             return 1.5, 'L'
-        return np.nan, np.nan
+        return np.nan, ''
 
     def regex_rule_container(self, string):
         m = re.search(r'PKC|PK C|OZC|OZ C|SGLC|SGL C|PKCN|PK CN|OZCN|OZ CN|SGLCN| CAN| CANS| CN| CNS', str(string).upper())
@@ -289,7 +289,7 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         m = re.search(r' JUG', str(string).upper())
         if m != None:
             return 'Jug'
-        return np.nan
+        return None
     
     #### Column Logic for applying Regex Logic above
     def _standardize_item_size(self, size, unit):
@@ -337,19 +337,22 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
     #### Larger functions for calling all above (these functions actually do stuff)
     # Handle special package types
     def parse_special_package_configurations(self, x):
-        if x['str_item_units'] == 'BOMBER':
-            return  [22,'OZ','B']
-        if x['str_item_units'] == 'PINT':
-            return [16,'OZ', x['str_container_type']]
+        if x['item_units'] == 'BOMBER':
+            return  [22,'OZ','Bottles']
+        if x['item_units'] == 'PINT':
+            return [16,'OZ', x['container_type']]
         else:
-            return [x['float_item_size'],x['str_item_units'],x['str_container_type']]
-        
+            return [x['item_size_value'],x['item_units'], x['container_type']]
+    
+    # Handle filling when container_type is missing using item_size to create logic on assumed container type
     def fill_missing_container(self, x):
-        if math.isnan(x['container_type']):
-            if x['item_size_value'] >= 500 and x['item_units'] == 'ml' :
+        if not x['container_type']:
+            if x['item_size_value'] >= 500 and x['item_units'] == 'ML' :
                 return 'Bottles'
-            elif x['item_units'] == 'l' :
+            elif x['item_units'] == 'L' :
                 return 'Bottles'
+            elif x['item_units'] == 'LB' :
+                return 'Bag'
             else:
                 return ''
         else:
@@ -362,17 +365,18 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         df['container_type'] = df.apply(lambda x: self.regex_logic_container(x), axis=1)
         
         # Special Package names (i.e. bomber and pint)
-        df[['float_item_size','str_item_units','container_type']] = df.apply(lambda x:  self.parse_special_package_configurations(x), result_type='expand',axis=1)
+        df[['item_size_value','item_units','container_type']] = df.apply(lambda x:  self.parse_special_package_configurations(x), result_type='expand',axis=1)
         
         # Create item_size col
-        df['item_size'] = df['float_item_size'].astype(str) + df['str_item_units'].astype(str).str.lower()
+        df['item_size'] = df['item_size_value'].astype(str) + ' ' + df['item_units'].astype(str)
         
         # Clean up item_size parsing
-        df['item_size'] = df['item_size'].str.replace('.0 ','').str.replace('nan','').str.strip()
+        df['item_size'] = df['item_size'].str.replace('.0 ',' ')
+        df['item_size'] = df['item_size'].str.replace('nan','')
         
         # If missing container type for larger items make bottle
         #### maybe add a function for handling this
-        df['item_size'] = df.apply(self.fill_missing_container, axis=1)
+        df['container_type'] = df.apply(self.fill_missing_container, axis=1)
         
         ### Need to add something to do with bottle types? Like PET or Tetra or Pouch?
         return df
@@ -387,31 +391,30 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
             return False
         
     def build_package_configuration(self, x):
-        if self._check_empty_string(x['item_size']) and self._check_empty_string(x['str_container_type']):
-            return str(x['package_size_num']) + ' pack'
+        if self._check_empty_string(x['item_size']) and self._check_empty_string(x['container_type']):
+            return str(int(x['package_size_num'])) + ' pack'
         
-        elif self._check_empty_string(x['str_container_type']):
-             return str(x['package_size_num']) + ' pack ' + str(x['item_size'])
+        elif self._check_empty_string(x['container_type']):
+             return str(int(x['package_size_num'])) + ' pack ' + str(x['item_size'])
             
         elif self._check_empty_string(x['item_size']):
-             return str(x['package_size_num']) + ' pack ' + str(x['str_container_type'])
+             return str(int(x['package_size_num'])) + ' pack ' + str(x['container_type'])
 
         else:
-            return str(x['package_size_num']) + ' pack ' + str(x['item_size']) + ' ' + str(x['str_container_type'])
+            return str(int(x['package_size_num'])) + ' pack ' + str(x['item_size']) + ' ' + str(x['container_type'])
         
        
         
     #### tie it all together into a single function
     def main(self, df):
-        df = df[df['inventoryExtension_id'].notnull()]
         df = self.parse_configuration(df)
         df['package_configuration'] = df.apply(self.build_package_configuration, axis=1)
 
 #         if product_type.upper() == 'WINE' or product_type.upper() == 'LIQUOR':
-#             matches_df['str_container_type'] = matches_df['str_container_type'].fillna('B')
-            # print(matches_df['str_container_type'].value_counts(dropna=False))
+#             matches_df['container_type'] = matches_df['container_type'].fillna('B')
+            # print(matches_df['container_type'].value_counts(dropna=False))
 #         if product_type.upper() == 'BEER':
-#             matches_df['float_item_size'] = matches_df['float_item_size'].fillna(12)
-#             matches_df['str_item_units'] = matches_df['str_item_units'].fillna('OZ')
+#             matches_df['item_size_value'] = matches_df['item_size_value'].fillna(12)
+#             matches_df['item_units'] = matches_df['item_units'].fillna('OZ')
 
         return df
