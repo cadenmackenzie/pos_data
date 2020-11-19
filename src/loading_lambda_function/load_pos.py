@@ -21,8 +21,8 @@ def batch_load(iterable, batch_size=1):
     for ndx in range(0,l,batch_size):
         yield iterable[ndx:min(ndx + batch_size, l)].to_dict(orient='records')
 
-def transform_nans(df, columns=['rt_brand_name','rt_brand_description','rt_upc_code','rt_product_type','rt_product_category','rt_package_size','rt_item_size','item_units','container_type','package_configuration']):
-    for c in columns:
+def transform_nans(df):
+    for c in df.columns:
         df[c] = df[c].replace(np.nan, '', regex=True)
     return df
     
@@ -33,7 +33,7 @@ def load_pos_to_db(filename):
     # Load row-by-row
     for i, d in enumerate(batch_load(df)):
         if i % 100 == 0:
-            print(f'Loaded row: {i + 1}\nData sample: {d[0]}')
+            print(f'Loaded row: {i + 1}')
 
         f = load_data(d[0])
         if i == 0:
