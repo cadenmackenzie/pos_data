@@ -10,6 +10,7 @@ from zipfile import ZipFile
 from dbfread import DBF
 import datetime
 import pandas as pd
+from package_configuration_class import PackageConfigurationParser
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
@@ -313,6 +314,8 @@ def process_pos(input_filename, output_filename):
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
+
+    df = PackageConfigurationParser().main(df)
     
     # Processing for all POS systems
     df['active'] = 1 # set all items in inventoryExtension file as active
