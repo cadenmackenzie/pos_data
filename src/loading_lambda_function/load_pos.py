@@ -33,7 +33,7 @@ def load_pos_to_db(filename):
     # Load row-by-row
     for i, d in enumerate(batch_load(df)):
         if i % 100 == 0:
-            print(f'Loaded row: {i + 1}')
+            print(f'Loaded row: {i}')
 
         f = load_data(d[0])
         if i == 0:
