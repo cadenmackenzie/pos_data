@@ -299,7 +299,7 @@ def get_retailer_info(filename):
 
     # Throw exception if filename is not found in reatiler_df
     except:
-        raise Exception(f"[ERROR]: Filename '{str(filename).lower()}' not found. Please make sure {str(filename).lower()} with reatailer_id and pos is a value in retailer table in DB.")
+        raise Exception(f"[ERROR]: Filename '{str(filename).lower()}' not found. Please make sure {str(filename).lower()} with retailer_id and pos is a value in retailer table in DB.")
     
 def process_pos(input_filename, output_filename):
     # pass input_filename to get_retailer_info to get retailer_id and retailer pos info
