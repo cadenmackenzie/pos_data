@@ -297,9 +297,9 @@ def get_retailer_info(filename):
         print(f"Filename: {str(filename).lower()} found info for retailer -> Retailer Name: {retailer_name}, Retailer ID: {retailer_id}, POS system: {pos}")
         return retailer_id, pos
 
-    # Throw exception if filename is not found in reatiler_df
+    # Throw exception if filename is not found in retailer_df
     except:
-        raise Exception(f"[ERROR]: Filename '{str(filename).lower()}' not found. Please make sure {str(filename).lower()} with retailer_id and pos is a value in retailer table in DB.")
+        raise Exception(f"[ERROR]: Unrecognized filename: '{str(filename).lower()}'. Please make sure {str(filename).lower()} is associated with a retailer_id and pos system in Retailer table in DB.")
     
 def process_pos(input_filename, output_filename):
     # pass input_filename to get_retailer_info to get retailer_id and retailer pos info
