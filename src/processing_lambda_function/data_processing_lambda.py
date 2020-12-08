@@ -152,7 +152,6 @@ class processAdvent(processTiger):
         pass
 
     def process_data(self, df):
-        df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
 
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
