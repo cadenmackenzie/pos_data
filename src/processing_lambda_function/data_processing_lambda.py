@@ -216,25 +216,32 @@ class processLiquorPos(processMPower):
         '''
         with ZipFile(file_path, "r") as z:
             z.extractall("/tmp/")
-        unzipped_path = file_path.replace('/var/task/','/tmp/').replace('.zip','')
+                
+        unzipped_path = '/tmp/var/www/html/' + file_path.replace('/tmp/','').replace('.zip','')
+        
+        # print('glob unzipped path: ',glob(unzipped_path))
+        
         file_paths = glob(unzipped_path+'/*.dbf')
         return file_paths
 
-    def load_data(self, input_filenames):
+    def load_data(self, input_filename):
+        print(input_filename)
         count = 0
-        if '.zip' in input_filenames:
+        if '.zip' in input_filename:
             # Read .zip file
-            file_paths = self.extract_files(input_filenames)
+            file_paths = self.extract_files(input_filename)
+            print('liquorpos .df filepaths: ', file_paths)
             # iterate through files in .zip file and read into pandas dataframe
             for f in file_paths:
-                if '/BARCODES.dbf' in f:
+                print('filename: ', f)
+                if 'barcodes.dbf' in f.lower():
                     df = self.read_dbf_files(f)
                     df = df[['CODE_NUM','BARCODE']]
-                elif '/LIQCODE.dbf' in f:
+                elif 'liqcode.dbf' in f.lower():
                     df = self.read_dbf_files(f)
                     df.drop(['BARCODE'], axis=1, inplace=True)
                 else:
-                    continue
+                    pass
 
                 if count == 0:
                     final_df = df
@@ -281,9 +288,9 @@ class processLiquorPos(processMPower):
 
 def get_retailer_info(filename):
     start = time.time()
-    print('Pulling Retailer Info')
+    
     r = requests.get("https://register.handofftech.com/v2/util/retailers?apiKey=836804e3-928a-4454-b064-485848cc6336") # TODO: get endpoint from Caden --> pull retailer info and match with filename
-    print('Reponse Status: ', r)
+    print('Pulling Retailer Info -> Reponse Status: ', r)
     # Read return into pandas dataframe
     retailer_df = pd.DataFrame.from_dict(r.json()['data'])
     end = time.time()
