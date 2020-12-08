@@ -38,7 +38,7 @@ class processMPower(object):
         }
         pass
 
-    def _check_data_types(self, df, numeric_cols = ['rt_product_id','price_regular','price_sale','qty_on_hand']):
+    def _check_data_types(self, df, numeric_cols = ['price_regular','price_sale','qty_on_hand']):
         for c in df.columns:
             if c in numeric_cols:
                 df[c] = pd.to_numeric(df[c], errors='coerce').astype(float)
@@ -130,17 +130,25 @@ class processAdvent(processTiger):
     def __init__(self):
         super(processAdvent, self).__init__()
         self.col_names_dict = {
-            'sku':'rt_product_id',
-            'mainupc':'rt_upc_code',
-            'itemname':'rt_brand_name',
-            'description':'rt_brand_description',
-            'depid':'rt_product_type',
+            0:'rt_product_id',
+            4:'rt_upc_code',
+            1:'rt_brand_name',
+            3:'rt_brand_description',
+            27:'rt_product_type',
             # 'depid':'rt_product_category',
-            'keyword':'rt_package_size', # are we sure about this???
-            'priceperunit':'price_regular',
-            'isserialized':'price_sale', # This should be CURRENTCOST or ISSERIALIZED
-            'instoreqty':'qty_on_hand'
+            96:'rt_package_size', # are we sure about this???
+            13:'price_regular',
+            54:'price_sale', # This should be CURRENTCOST or ISSERIALIZED
+            19:'qty_on_hand'
         }
+        pass
+
+    def load_data(self, input_filenames):        
+        if '.csv' in input_filenames:
+            df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1', skiprows=4, header=None) # read in filename as str using | as delimiter
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
         pass
 
     def process_data(self, df):
@@ -275,7 +283,7 @@ class processLiquorPos(processMPower):
 def get_retailer_info(filename):
     start = time.time()
     print('Pulling Retailer Info')
-    r = requests.get("https://development.handofftech.com/v2/util/retailers?apiKey=836804e3-928a-4454-b064-485848cc6336") # TODO: get endpoint from Caden --> pull retailer info and match with filename
+    r = requests.get("https://register.handofftech.com/v2/util/retailers?apiKey=836804e3-928a-4454-b064-485848cc6336") # TODO: get endpoint from Caden --> pull retailer info and match with filename
     print('Reponse Status: ', r)
     # Read return into pandas dataframe
     retailer_df = pd.DataFrame.from_dict(r.json()['data'])
@@ -287,7 +295,7 @@ def get_retailer_info(filename):
         # remove /tmp/ from input_filename
         filename = str(filename).split('/')[-1]
         retailer_id, pos, retailer_name = retailer_df[retailer_df['filename'].str.lower() == str(filename).lower()][['id','pos','name']].iloc[0]
-        print(f"Filename:{str(filename).lower()} found info for retailer:\n\tRetailer Name: {retailer_name}, Retailer ID: {retailer_id}, POS system: {pos}")
+        print(f"Filename: {str(filename).lower()} found info for retailer -> Retailer Name: {retailer_name}, Retailer ID: {retailer_id}, POS system: {pos}")
         return retailer_id, pos
 
     # Throw exception if filename is not found in reatiler_df

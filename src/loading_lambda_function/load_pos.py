@@ -10,37 +10,44 @@ import numpy as np
 print('Loading Function')
 s3_client = boto3.client('s3')
 
-def load_data(d, server='development'):
-    f = requests.post(f"https://{server}.handofftech.com/v2/util/addUpdateInventoryExtension?apiKey={os.environ['api_key']}",
-        headers={"Content-Type": "application/json"}, 
-        json=d)
+def load_data(filename, server='test'):
+    # print(filename)
+    # print(f"https://{server}.encompass8.com/ECP_20.11_A/aspx1/api?APICommand=Handoff_Load_Pos_Data&EncompassID=Handoff2011&FileName={filename}")
+
+    f = requests.post(f"https://{server}.encompass8.com/ECP_20.11_A/aspx1/api?APICommand=Handoff_Load_Pos_Data&EncompassID=Handoff2011&APIToken={os.environ['api_key']}",
+        # headers={"Content-Type": "application/json"}, 
+        params={'FileName':filename}
+        )
     return f
 
-def batch_load(iterable, batch_size=1):
-    l = len(iterable)
-    for ndx in range(0,l,batch_size):
-        yield iterable[ndx:min(ndx + batch_size, l)].to_dict(orient='records')
+# def batch_load(iterable, batch_size=1):
+#     l = len(iterable)
+#     for ndx in range(0,l,batch_size):
+#         yield iterable[ndx:min(ndx + batch_size, l)].to_dict(orient='records')
 
-def transform_nans(df):
-    for c in df.columns:
-        df[c] = df[c].replace(np.nan, '', regex=True)
-    return df
+# def transform_nans(df):
+#     for c in df.columns:
+#         df[c] = df[c].replace(np.nan, '', regex=True)
+#     return df
     
 def load_pos_to_db(filename):
-    df = pd.read_csv(filename)
-    df = transform_nans(df)
+    f = load_data(filename)
+    if f.status_code != 200:
+        raise Exception(f'Post request return {f.status_code}.\n{f}')
+    # df = pd.read_csv(filename)
+    # df = transform_nans(df)
 
     # Load row-by-row
-    for i, d in enumerate(batch_load(df)):
-        if i % 100 == 0:
-            print(f'Loaded row: {i}')
+    # for i, d in enumerate(batch_load(df)):
+    #     if i % 100 == 0:
+    #         print(f'Loaded row: {i}')
 
-        f = load_data(d[0])
-        if i == 0:
-            print(f)
+    #     f = load_data(d[0])
+    #     if i == 0:
+    #         print(f)
 
-        if f.status_code != 200:
-            raise Exception(f'Post request return {f.status_code}. Here is the problem row: {d[0]}')
+    #     if f.status_code != 200:
+    #         raise Exception(f'Post request return {f.status_code}. Here is the problem row: {d[0]}')
     return
 
 def lambda_handler(event, context):
