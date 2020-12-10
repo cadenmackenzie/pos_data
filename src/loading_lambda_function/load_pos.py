@@ -4,51 +4,29 @@ import requests
 import json
 import boto3
 from urllib.parse import unquote_plus
-import pandas as pd
-import numpy as np
 
 print('Loading Function')
 s3_client = boto3.client('s3')
 
-def load_data(filename, server='test'):
-    # print(filename)
-    # print(f"https://{server}.encompass8.com/ECP_20.11_A/aspx1/api?APICommand=Handoff_Load_Pos_Data&EncompassID=Handoff2011&FileName={filename}")
-
-    f = requests.post(f"https://{server}.encompass8.com/ECP_20.11_A/aspx1/api?APICommand=Handoff_Load_Pos_Data&EncompassID=Handoff2011&APIToken={os.environ['api_key']}",
-        # headers={"Content-Type": "application/json"}, 
-        params={'FileName':filename}
-        )
-    return f
-
-# def batch_load(iterable, batch_size=1):
-#     l = len(iterable)
-#     for ndx in range(0,l,batch_size):
-#         yield iterable[ndx:min(ndx + batch_size, l)].to_dict(orient='records')
-
-# def transform_nans(df):
-#     for c in df.columns:
-#         df[c] = df[c].replace(np.nan, '', regex=True)
-#     return df
-    
 def load_pos_to_db(filename):
-    f = load_data(filename)
-    if f.status_code != 200:
-        raise Exception(f'Post request return {f.status_code}.\n{f}')
-    # df = pd.read_csv(filename)
-    # df = transform_nans(df)
+    print(f'load_pos_to_db()\n\t-> pushing {filename} to Encompass table ProcessedPosData')
+    url = f"https://api.encompass8.com/aspx1/API?APICommand=HandoffLoadProcessedPosData&EncompassID=Handoff&APIToken={os.environ['api_key']}"
 
-    # Load row-by-row
-    # for i, d in enumerate(batch_load(df)):
-    #     if i % 100 == 0:
-    #         print(f'Loaded row: {i}')
+    payload={}
+    files=[
+    ('File',(filename,open(filename,'rb'),'text/csv'))
+    ]
+    
+    headers = {
+        'Cookie': 'EncompassDistributor=Handoff; EncompassDBServer=MySQL_Handoff'
+    }
 
-    #     f = load_data(d[0])
-    #     if i == 0:
-    #         print(f)
-
-    #     if f.status_code != 200:
-    #         raise Exception(f'Post request return {f.status_code}. Here is the problem row: {d[0]}')
-    return
+    response = requests.request("POST", url, headers=headers, data=payload, files=files)
+    print(f'\t-> Response: {response.status_code}')
+    
+    if response.status_code != 200:
+        raise Exception(f'Post request return {response.status_code}.\n{response.text}')
+    return response
 
 def lambda_handler(event, context):
     start = time.time()
@@ -60,7 +38,7 @@ def lambda_handler(event, context):
         tmpkey = key.replace('/', '')
         download_path = '/tmp/{}'.format(tmpkey)
 
-        print(f'{download_path} has been loaded to {bucket}.')
+        print(f'{download_path} has been loaded from {bucket}.')
         
         # Download file from S3 set as the trigger ('handoff-pos-processed')
         s3_client.download_file(bucket, key, download_path)
