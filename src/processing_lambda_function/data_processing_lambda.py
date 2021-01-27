@@ -9,13 +9,12 @@ from glob import glob
 from zipfile import ZipFile
 from dbfread import DBF
 import datetime
+import xml.etree.ElementTree as ET
 import pandas as pd
 from package_configuration_class import PackageConfigurationParser
 pd.options.mode.chained_assignment = None  # default='warn'
 
-
 print('Loading Function')
-
 s3_client = boto3.client('s3')
 
 class processMPower(object):
@@ -75,6 +74,71 @@ class processMPower(object):
         return df
 
 
+
+class processSpirit2000(processMPower):
+    def __init__(self):
+        self.cols = [
+            'rt_product_id','rt_upc_code','rt_brand_name',
+            'rt_brand_description','rt_product_type','rt_product_category',
+            'rt_package_size','rt_item_size','price_regular',
+            'price_sale','qty_on_hand'
+            ]
+        self.col_names_dict = {
+            'sku':'rt_product_id',
+            'upccode':'rt_upc_code',
+            'prodname':'rt_brand_description',
+            'catname':'rt_product_type',
+            'typename':'rt_product_category',
+            'sellqty':'rt_package_size',
+            'sizename':'rt_item_size',
+            'unitprice':'price_regular',
+            'sale':'price_sale',
+            'stockqty':'qty_on_hand',
+            'webstatus':'webstatus',
+            'onsale':'onsale',
+            'deleted':'deleted'
+        }
+        pass
+
+    def load_data(self, input_filenames):
+        data = {k:[] for k in self.col_names_dict.keys()}
+        if '.xml' in input_filenames:
+            root = ET.parse(input_filenames).getroot()
+
+            for elem in root:
+                if 'webtable' in elem.tag:
+                    for k in data.keys():
+                        for value in elem.iter(k):
+                            data[k] += [value.text]
+                        
+            df = pd.DataFrame(data)
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .xml.")
+        pass
+
+    def process_data(self, df):
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+        df['rt_brand_name'] = df['rt_brand_description']
+        df['rt_package_size'] = df['rt_package_size'] + ' pack'
+
+        # Extra processing
+        df = df[
+            (df['webstatus'] != 3) \
+            & (df['deleted'] != 'true') 
+            ] # 3 means never send to web and record not deleted
+        df['price_sale'] = df.apply(lambda x: x['price_sale'] if x['onsale'] == 'T' else 0) # check if product is onsale
+
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+
+
 class processTiger(processMPower):
     def __init__(self):
         super(processTiger, self).__init__()
@@ -124,6 +188,7 @@ class processTiger(processMPower):
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
+
 
 
 class processAdvent(processTiger):
@@ -181,6 +246,7 @@ class processAdvent(processTiger):
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
+
 
 
 class processLiquorPos(processMPower):
@@ -286,6 +352,7 @@ class processLiquorPos(processMPower):
         return df
 
 
+# All POS functions
 def get_retailer_info(filename):
     start = time.time()
     
@@ -324,6 +391,9 @@ def process_pos(input_filename, output_filename):
 
     elif retailer_pos.lower() == 'liquorpos':
         pos_proc = processLiquorPos()
+
+    elif retailer_pos.lower() == 'spirit2000':
+        pos_proc = processSpirit2000()
 
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
