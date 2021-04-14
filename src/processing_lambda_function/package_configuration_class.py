@@ -69,6 +69,10 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         if m != None:
             return float(m.group(0).replace('BTL','').replace('/',''))
 
+        m = re.search(r'\d+(?=\/)', str(string).upper())
+        if m != None:
+            return float(m.group(0))
+
         if str(string).upper() == 'SINGLE':
             return 1.0
         if str(string).upper() == 'SNG':
@@ -215,20 +219,20 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         if m != None:
             return float(m.group(0).replace('GL','')), 'GAL'
 
-        # m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+G', str(string).upper())
-        # if m != None:
-        #     try:
-        #         return float(m.group(0).replace('G','')), 'GAL'
-        #     except:
-        #         print('ERROR: ', m.group(0).replace('G',''), 'GAL')
-        #         return np.nan, 'GAL' 
-        # m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.G', str(string).upper())
-        # if m != None:
-        #     try:
-        #         return float(m.group(0).replace('G','')), 'GAL'
-        #     except:
-        #         print('ERROR: ', m.group(0).replace('G',''), 'GAL')
-        #         return np.nan, 'GAL' 
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+G', str(string).upper())
+        if m != None:
+            try:
+                return float(m.group(0).replace('G','')), 'GAL'
+            except:
+                print('ERROR: ', m.group(0).replace('G',''), 'GAL')
+                return np.nan, 'GAL' 
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.G', str(string).upper())
+        if m != None:
+            try:
+                return float(m.group(0).replace('G','')), 'GAL'
+            except:
+                print('ERROR: ', m.group(0).replace('G',''), 'GAL')
+                return np.nan, 'GAL' 
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+LT', str(string).upper())
         if m != None:
@@ -277,16 +281,20 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         return np.nan, ''
 
     def regex_rule_container(self, string):
-        m = re.search(r'PKC|PK C|OZC|OZ C|SGLC|SGL C|PKCN|PK CN|OZCN|OZ CN|SGLCN| CAN| CANS| CN| CNS', str(string).upper())
+        string = ' ' + str(string).upper() + ' '
+        m = re.search(r'PKC|PK C|OZC|OZ C|SGLC|SGL C|PKCN|PK CN|OZCN|OZ CN|SGLCN| CAN| CANS| CN| CNS', string)
         if m != None:
             return 'Cans'
-        m = re.search(r'PKB|PK B|OZB|OZ B|SGLB|SGL B|PKBTL|PK BTL|OZBTL|OZ BTL|SGLBTL|BTL|BOTTLE|BOTTLES|ML B|MLB', str(string).upper())
+        m = re.search(r'PKB|PK B|OZB|OZ B|SGLB|SGL B|PKBTL|PK BTL|OZBTL|OZ BTL|SGLBTL|BTL|BOTTLE|BOTTLES|ML B|MLB', string)
         if m != None:
             return 'Bottles'
-        m = re.search(r' KEG|KEGS', str(string).upper())
+        # m = re.search(r' BOXED | BOX ', string)
+        # if m != None:
+        #     return 'Bag In Box'
+        m = re.search(r' KEG|KEGS', string)
         if m != None:
             return 'Keg'
-        m = re.search(r' JUG', str(string).upper())
+        m = re.search(r' JUG', string)
         if m != None:
             return 'Jug'
         return None
@@ -301,6 +309,8 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
             return size, unit
         
     def regex_logic_package_size(self, x):
+        # if 'single' in str(x['rt_package_size']).lower() or 'single' in str(x['rt_brand_description']).lower() or 'single' in str(x['rt_item_size']).lower():
+        #     return 1.0
         m = self.regex_rule_package_size(x['rt_package_size'])
         if not math.isnan(m):
             return m
@@ -349,7 +359,7 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         if not x['container_type']:
             if x['item_size_value'] >= 500 and x['item_units'] == 'ML' :
                 return 'Bottles'
-            elif x['item_units'] == 'L' :
+            elif x['item_units'] == 'L' and x['item_size_value'] < 3:
                 return 'Bottles'
             elif x['item_units'] == 'LB' :
                 return 'Bag'
