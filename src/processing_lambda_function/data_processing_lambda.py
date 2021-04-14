@@ -9,13 +9,12 @@ from glob import glob
 from zipfile import ZipFile
 from dbfread import DBF
 import datetime
+import xml.etree.ElementTree as ET
 import pandas as pd
 from package_configuration_class import PackageConfigurationParser
 pd.options.mode.chained_assignment = None  # default='warn'
 
-
 print('Loading Function')
-
 s3_client = boto3.client('s3')
 
 class processMPower(object):
@@ -70,9 +69,78 @@ class processMPower(object):
         if 'rt_item_size' not in df.columns:
             df['rt_item_size'] = ''
 
+        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
+
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
+
+
+
+class processSpirit2000(processMPower):
+    def __init__(self):
+        self.cols = [
+            'rt_product_id','rt_upc_code','rt_brand_name',
+            'rt_brand_description','rt_product_type','rt_product_category',
+            'rt_package_size','rt_item_size','price_regular',
+            'price_sale','qty_on_hand'
+            ]
+        self.col_names_dict = {
+            'sku':'rt_product_id',
+            'upccode':'rt_upc_code',
+            'prodname':'rt_brand_description',
+            'catname':'rt_product_type',
+            'typename':'rt_product_category',
+            'sellqty':'rt_package_size',
+            'sizename':'rt_item_size',
+            'unitprice':'price_regular',
+            'sale':'price_sale',
+            'stockqty':'qty_on_hand',
+            'webstatus':'webstatus',
+            'onsale':'onsale',
+            'deleted':'deleted'
+        }
+        pass
+
+    def load_data(self, input_filenames):
+        data = {k:[] for k in self.col_names_dict.keys()}
+        if '.xml' in input_filenames:
+            root = ET.parse(input_filenames).getroot()
+
+            for elem in root:
+                if 'webtable' in elem.tag:
+                    for k in data.keys():
+                        for value in elem.iter(k):
+                            data[k] += [value.text]
+                        
+            df = pd.DataFrame(data)
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .xml.")
+        pass
+
+    def process_data(self, df):
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+        df['rt_brand_name'] = df['rt_brand_description']
+        df['rt_package_size'] = df['rt_package_size'] + ' pack'
+
+        # Extra processing
+        df = df[
+            (df['webstatus'] != 3) \
+            & (df['deleted'] != 'true') 
+            ] # 3 means never send to web and record not deleted
+        df['price_sale'] = df.apply(lambda x: x['price_sale'] if x['onsale'] == 'T' else 0) # check if product is onsale
+
+        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
+
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
 
 
 class processTiger(processMPower):
@@ -120,10 +188,13 @@ class processTiger(processMPower):
         # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
         if 'rt_item_size' not in df.columns:
             df['rt_item_size'] = ''
+
+        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
         
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
+
 
 
 class processAdvent(processTiger):
@@ -177,10 +248,66 @@ class processAdvent(processTiger):
         # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
         if 'rt_item_size' not in df.columns:
             df['rt_item_size'] = ''
+
+        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
         
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
+
+
+class processCashRegisterExpress(processMPower):
+    def __init__(self):
+        super(processCashRegisterExpress, self).__init__()
+        self.col_names_dict = {
+            0:'rt_upc_code',
+            1:'rt_brand_description',
+            4:'price_regular',
+            5:'price_sale',
+            6:'qty_on_hand',
+            13:'rt_package_size',
+            90:'rt_product_id',
+            # # 'depid':'rt_product_category',            
+        }
+        pass
+
+    def load_data(self, input_filenames):        
+        if '.csv' in input_filenames:
+            df = pd.read_csv(input_filenames, sep='|', header=None, skiprows=5, error_bad_lines=False, engine='python') # read in filename as str using | as delimiter
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
+        pass
+
+    def process_data(self, df):
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df['rt_product_id'] = df['rt_product_id'].apply(lambda x: str(x).replace('-',''))        
+
+        # Fill in sale price with 0 if it is not a digit
+        df['price_sale'] = pd.to_numeric(df['price_sale'], errors='coerce')
+        df['price_sale'] = df['price_sale'].fillna(0).astype(float)
+        
+        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
+        if 'rt_item_size' not in df.columns:
+            df['rt_item_size'] = ''
+        if 'rt_brand_name' not in df.columns:
+            df['rt_brand_name'] = ''
+        if 'rt_product_type' not in df.columns:
+            df['rt_product_type'] = ''
+        if 'rt_product_category' not in df.columns:
+            df['rt_product_category'] = df['rt_product_type']
+
+        df = df[df['price_regular'] != 0]
+
+        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
+        
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
 
 
 class processLiquorPos(processMPower):
@@ -206,8 +333,13 @@ class processLiquorPos(processMPower):
         dbfile  : DBF file - Input to be imported
         adapted from: https://stackoverflow.com/questions/41898561/pandas-transform-a-dbf-table-into-a-dataframe
         '''
-        dbf = DBF(input_filename, ignore_missing_memofile=True)
-        df = pd.DataFrame(iter(dbf))
+        try: 
+            dbf = DBF(input_filename, ignore_missing_memofile=True)
+            df = pd.DataFrame(iter(dbf))
+        except:
+            dbf = DBF(input_filename, ignore_missing_memofile=True)
+            dbf.char_decode_errors = 'ignore'
+            df = pd.DataFrame(iter(dbf))
         return df
 
     def extract_files(self, file_path):
@@ -216,7 +348,7 @@ class processLiquorPos(processMPower):
         '''
         with ZipFile(file_path, "r") as z:
             z.extractall("/tmp/")
-                
+
         unzipped_path = '/tmp/var/www/html/' + file_path.replace('/tmp/','').replace('.zip','')
         
         # print('glob unzipped path: ',glob(unzipped_path))
@@ -280,12 +412,15 @@ class processLiquorPos(processMPower):
         # Check if item_size in the dataframe if not then set all item_size to empty string 
         if 'rt_item_size' not in df.columns:
             df['rt_item_size'] = ''
+
+        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
         
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
 
 
+# All POS functions
 def get_retailer_info(filename):
     start = time.time()
     
@@ -324,6 +459,12 @@ def process_pos(input_filename, output_filename):
 
     elif retailer_pos.lower() == 'liquorpos':
         pos_proc = processLiquorPos()
+
+    elif retailer_pos.lower() == 'spirit2000':
+        pos_proc = processSpirit2000()
+    
+    elif retailer_pos.lower() == 'cashregisterexpress':
+        pos_proc = processCashRegisterExpress()
 
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
@@ -372,3 +513,19 @@ def lambda_handler(event, context):
         'statusCode': 200,
         'body': json.dumps('Success!')
     }
+
+if __name__ == "__main__":
+    # print("Testing processCashRegisterExpress()")
+#     proc = processCashRegisterExpress()
+#     df = proc.load_data('~/Downloads/square_b_handoff.csv')
+#     df = proc.process_data(df)
+#     print(df.head())
+#     print('Saving test_cashregisterexpress.csv')
+#     df.to_csv('test_cashregisterexpress.csv')
+    print("Testing LiquorPOS() for house_of_spirits")
+    proc = processLiquorPos()
+    df = proc.load_data('house_of_spirits.zip')
+    df = proc.process_data(df)
+    print(df.head())
+    print('Saving test_house_of_spirits.csv')
+    df.to_csv('test_house_of_spirits.csv')
