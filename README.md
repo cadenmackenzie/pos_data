@@ -44,7 +44,7 @@ zip -r pos-processing-layer.zip python
 
 5. Zip lambda function.
 ```
-zip -r pos-process-lambda.zip data_processing_lambda.py
+zip -r pos-process-lambda.zip processing_lambda_function
 ```  
 *Name zip file whatever you want, but you'll need the name in the next step.*
 
