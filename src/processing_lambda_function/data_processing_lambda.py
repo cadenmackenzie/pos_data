@@ -577,6 +577,9 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'cashregisterexpress':
         pos_proc = processCashRegisterExpress()
 
+    elif retailer_pos.lower() == 'cashregisterexpress_v2':
+        pos_proc = processCashRegisterExpress_v2()
+
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
