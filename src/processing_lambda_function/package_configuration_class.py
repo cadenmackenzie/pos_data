@@ -148,10 +148,18 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+ML', str(string).upper())
         if m != None:
-            return float(m.group(0).replace('ML','')), 'ML'
+            try:
+                return float(m.group(0).replace('ML','')), 'ML'
+            except:
+                print('ERROR: ', m.group(0).replace('ML',''))
+                return np.nan, 'ML'
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.ML', str(string).upper())
         if m != None:
-            return float(m.group(0).replace('ML','')), 'ML'
+            try:
+                return float(m.group(0).replace('ML','')), 'ML'
+            except:
+                print('ERROR: ', m.group(0).replace('ML',''))
+                return np.nan, 'ML'
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+LBS', str(string).upper())
         if m != None:

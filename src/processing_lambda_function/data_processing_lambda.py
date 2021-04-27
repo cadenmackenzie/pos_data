@@ -420,7 +420,7 @@ class processSpirit2000(processLiquorPos):
             'upc':'rt_upc_code',
             'name':'rt_brand_description',
             # 'catname':'rt_product_type',
-            'typename':'rt_product_category',
+            'typename':'rt_product_type',
             'qty':'rt_package_size',
             'sname':'rt_item_size',
             'price':'price_regular',
@@ -487,14 +487,36 @@ class processSpirit2000(processLiquorPos):
 
                 elif 'prc.dbf' in f.lower():
                     df = self.read_dbf_files(f)
+                    df = df [['SKU','QTY','PRICE','SALE','ONSALE','WHO','LEVEL','TSTAMP']]
+
+                    df['TSTAMP'] = pd.to_datetime(df['TSTAMP'])
+                    df[df['LEVEL'] == '1']
+
+                    idx = df.groupby(['SKU'])['QTY'].transform(max) == df['QTY']
+                    df = df[idx]
+                    idx = df.groupby(['SKU'])['TSTAMP'].transform(max) == df['TSTAMP']
+                    df = df[idx]
+
                     df = df [['SKU','QTY','PRICE','SALE','ONSALE','WHO','LEVEL']]
 
                 elif 'stk.dbf' in f.lower():
                     df = self.read_dbf_files(f)
+                    df = df[['SKU','BACK','TSTAMP']]
+
+                    df['TSTAMP'] = pd.to_datetime(df['TSTAMP'], )
+
+                    idx = df.groupby(['SKU'])['TSTAMP'].transform(max) == df['TSTAMP']
+                    df = df[idx]
                     df = df[['SKU','BACK']]
 
                 elif 'upc.dbf' in f.lower():
                     df = self.read_dbf_files(f)
+                    df = df[['SKU','UPC','TSTAMP']]
+
+                    df['TSTAMP'] = pd.to_datetime(df['TSTAMP'])
+
+                    idx = df.groupby(['SKU'])['TSTAMP'].transform(max) == df['TSTAMP']
+                    df = df[idx]
                     df = df[['SKU','UPC']]
                 else:
                     pass
@@ -512,8 +534,7 @@ class processSpirit2000(processLiquorPos):
         return final_df
 
     def process_data(self, df):
-        idx = df.groupby(['SKU','SNAME','PACK','QTY'])['SDATE'].transform(max) == df['SDATE']
-        df = df[idx]
+        df = df.drop_duplicates(['SKU','SNAME','PACK'])
         # Lower the columns and rename
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
@@ -521,7 +542,146 @@ class processSpirit2000(processLiquorPos):
         # if product_id can not be a digit then change this to simply drop the first row
         df['rt_product_id'] = df['rt_product_id'].astype(str)
         df['rt_brand_name'] = ''
-        df['rt_package_size'] = df['rt_package_size'] + ' pack'
+        df['rt_package_size'] = df['rt_package_size'].astype(str) + ' pack'
+        df['rt_product_category'] = ''
+
+        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
+
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+class processSpirit2000_tower(processSpirit2000):
+    def __init__(self):
+        super(processSpirit2000_tower, self).__init__()
+        self.col_names_dict = {
+            'sku':'rt_product_id',
+            'upc':'rt_upc_code',
+            'name':'rt_brand_description',
+            # 'catname':'rt_product_type',
+            'typename':'rt_product_type',
+            'qty':'rt_package_size',
+            'sname':'rt_item_size',
+            'price':'price_regular',
+            'sale':'price_sale',
+            'back':'qty_on_hand',
+        }
+        pass
+
+    # def load_data(self, input_filenames):
+    #     data = {k:[] for k in self.col_names_dict.keys()}
+    #     if '.xml' in input_filenames:
+    #         root = ET.parse(input_filenames).getroot()
+
+    #         for elem in root:
+    #             if 'webtable' in elem.tag:
+    #                 for k in data.keys():
+    #                     for value in elem.iter(k):
+    #                         data[k] += [value.text]
+                        
+    #         df = pd.DataFrame(data)
+    #         return df
+    #     else:
+    #         raise Exception("Unrecognized file type - expecting .xml.")
+    #     pass
+
+    def read_dbf_files(self, input_filename): #Reads in DBF files and returns Pandas DF
+        '''
+        Arguments
+        ---------
+        dbfile  : DBF file - Input to be imported
+        adapted from: https://stackoverflow.com/questions/41898561/pandas-transform-a-dbf-table-into-a-dataframe
+        '''
+        try:
+            dbf = DBF(input_filename, ignore_missing_memofile=True)
+            df = pd.DataFrame(iter(dbf))
+        except:
+            from dbfread import DBF, FieldParser, InvalidValue
+
+            class MyFieldParser(FieldParser):
+                def parse(self, field, data):
+                    try:
+                        return FieldParser.parse(self, field, data)
+                    except ValueError:
+                        return InvalidValue(data)
+
+            dbf = DBF(input_filename, ignore_missing_memofile=True, parserclass=MyFieldParser)
+            dbf.char_decode_errors = 'ignore'
+            df = pd.DataFrame(iter(dbf))
+        return df
+
+    def load_data(self, input_filename):
+        count = 0
+        if '.zip' in input_filename:
+            # Read .zip file
+            file_paths = self.extract_files(input_filename)
+            print('Spirit 2000 .dbf filepaths: ', file_paths)
+            # iterate through files in .zip file and read into pandas dataframe
+            for f in file_paths:
+                print('filename: ', f)
+                if 'inv.dbf' in f.lower():
+                    df = self.read_dbf_files(f)
+                    df = df[['SKU','NAME','SNAME','ML','PACK','SDATE','TYPENAME','WEBSENT','SENT']]
+                    # Aggregating on SKU, size, package size and wholesale package size and taking the maximum date
+
+                elif 'prc.dbf' in f.lower():
+                    df = self.read_dbf_files(f)
+                    df = df [['SKU','QTY','PRICE','SALE','ONSALE','WHO','LEVEL','TSTAMP']]
+
+                    df['TSTAMP'] = pd.to_datetime(df['TSTAMP'])
+
+                    if 'doraville' in f or 'buckhead' in f:
+                        df = df[df['LEVEL'] == '7']
+                        idx = df.groupby(['SKU'])['TSTAMP'].transform(max) == df['TSTAMP']
+                        df = df[idx]
+                    df = df [['SKU','QTY','PRICE','SALE','ONSALE','WHO','LEVEL']]
+
+                elif 'stk.dbf' in f.lower():
+                    df = self.read_dbf_files(f)
+                    df = df[['SKU','BACK','TSTAMP']]
+
+                    if 'doraville' in f or 'buckhead' in f:
+                        df['TSTAMP'] = pd.to_datetime(df['TSTAMP'], )
+
+                        idx = df.groupby(['SKU'])['TSTAMP'].transform(max) == df['TSTAMP']
+                        df = df[idx]
+                    df = df[['SKU','BACK']]
+
+                elif 'upc.dbf' in f.lower():
+                    df = self.read_dbf_files(f)
+                    df = df[['SKU','UPC','LAST']]
+
+                    df['LAST'] = pd.to_datetime(df['LAST'])
+
+                    idx = df.groupby(['SKU'])['LAST'].transform(max) == df['LAST']
+                    df = df[idx]
+                    df = df[['SKU','UPC']]
+                else:
+                    pass
+
+                if count == 0:
+                    final_df = df
+                elif count > 0:
+                    if 'SKU' in final_df.columns and 'SKU' in df.columns:
+                        final_df = final_df.merge(df, on=['SKU'])
+                    else:
+                        raise Exception("Can't find unique key - expecting 'SKU' to be unique key.")
+                count += 1
+        else:
+            raise Exception("Unrecognized file type - expecting .zip of .dbf files")
+        return final_df
+
+    def process_data(self, df):
+        df = df.drop_duplicates()
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+        df['rt_brand_name'] = ''
+        df['rt_package_size'] = df['rt_package_size'].astype(str) + ' pack'
+        df['rt_product_category'] = ''
 
         df.drop_duplicates(subset=['rt_product_id'], inplace=True)
 
@@ -577,6 +737,15 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'cashregisterexpress':
         pos_proc = processCashRegisterExpress()
 
+    elif retailer_pos.lower() == 'cashregisterexpress_v2':
+        pos_proc = processCashRegisterExpress_v2()
+
+    elif retailer_pos.lower() == 'spirit2000_tower':
+        pos_proc = processSpirit2000_tower()
+
+    elif retailer_pos.lower() == 'spirit2000':
+        pos_proc = processSpirit2000()
+
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
@@ -625,7 +794,7 @@ def lambda_handler(event, context):
         'body': json.dumps('Success!')
     }
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # print("Testing processCashRegisterExpress()")
     # proc = processCashRegisterExpress()
     # df = proc.load_data('~/Downloads/square_b_handoff_1.csv')
@@ -634,16 +803,16 @@ if __name__ == "__main__":
     # print('Saving test_cashregisterexpress.csv')
     # df.to_csv('test_cashregisterexpress.csv')
 
-    print("Testing processCashRegisterExpress_v2()")
-    proc = processCashRegisterExpress_v2()
-    df = proc.load_data('pecos_inventory.csv')
-    print(df)
-    print(df.shape)
-    print(df.columns)
-    df = proc.process_data(df)
-    print(df.head())
-    print('Saving test_pecos.csv')
-    df.to_csv('test_pecos.csv')
+    # print("Testing processCashRegisterExpress_v2()")
+    # proc = processCashRegisterExpress_v2()
+    # df = proc.load_data('pecos_inventory.csv')
+    # print(df)
+    # print(df.shape)
+    # print(df.columns)
+    # df = proc.process_data(df)
+    # print(df.head())
+    # print('Saving test_pecos.csv')
+    # df.to_csv('test_pecos.csv')
 
     # print("Testing LiquorPOS() for house_of_spirits")
     # proc = processLiquorPos()
@@ -667,23 +836,39 @@ if __name__ == "__main__":
     # df = proc.load_data('liquorbarn.zip')
     # print(df)
     # print(df.columns)
-    # print(df.drop_duplicates(subset=['SKU']))
-    # print(df.drop_duplicates(subset=['SKU','QTY']))
-    # print(df.drop_duplicates(subset=['SKU','SNAME','PACK','QTY']))
-    # idx = df.groupby(['SKU','SNAME','PACK','QTY'])['SDATE'].transform(max) == df['SDATE']
-    # print(df[idx])
-    # idx = df.groupby(['SKU','SNAME','PACK'])['SDATE'].transform(max) == df['SDATE']
-    # print(df[idx])
+    # print(df['SKU'].value_counts())
+    # print(df[df['SKU'] == 30010])
+    # df = proc.process_data(df)
+    # print(df.head())
+    # print(df['rt_product_id'].value_counts())
+    # print(df.shape)
+    # print('Saving test_liquorbarn.csv')
+    # df.to_csv('test_liquorbarn.csv')
 
-    # print('Testing processSpirit2000() for doraville.zip')
-    # proc = processSpirit2000()
+    # print('Testing processSpirit2000_tower() for doraville.zip')
+    # proc = processSpirit2000_tower()
     # df = proc.load_data('doraville.zip')
     # print(df)
     # print(df.columns)
-    # print(df.drop_duplicates(subset=['SKU']))
-    # print(df.drop_duplicates(subset=['SKU','QTY']))
-    # print(df.drop_duplicates(subset=['SKU','SNAME','PACK','QTY']))
-    # idx = df.groupby(['SKU','SNAME','PACK','QTY'])['SDATE'].transform(max) == df['SDATE']
-    # print(df[idx])
-    # idx = df.groupby(['SKU','SNAME','PACK'])['SDATE'].transform(max) == df['SDATE']
-    # print(df[idx])
+    # print(df['SKU'].value_counts())
+    # print(df[df['SKU'] == 50401])
+    # df = proc.process_data(df)
+    # print(df.head())
+    # print(df['rt_product_id'].value_counts())
+    # print(df.shape)
+    # print('Saving test_doraville.csv')
+    # df.to_csv('test_doraville.csv')
+
+    # print('Testing processSpirit2000_tower() for buckhead.zip')
+    # proc = processSpirit2000_tower()
+    # df = proc.load_data('buckhead.zip')
+    # print(df)
+    # print(df.columns)
+    # print(df['SKU'].value_counts())
+    # print(df[df['SKU'] == 53223])
+    # df = proc.process_data(df)
+    # print(df.head())
+    # print(df['rt_product_id'].value_counts())
+    # print(df.shape)
+    # print('Saving test_buckhead.csv')
+    # df.to_csv('test_buckhead.csv')
