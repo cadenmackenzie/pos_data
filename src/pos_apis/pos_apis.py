@@ -6,7 +6,7 @@ import requests
 import pandas as pd
 import numpy as np
 import json
-from tqdm import tqdm
+# from tqdm import tqdm
 import math
 import boto3
 from botocore.exceptions import NoCredentialsError
