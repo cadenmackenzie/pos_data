@@ -64,6 +64,20 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.PACK', str(string).upper())
         if m != None:
             return float(m.group(0).replace('PACK',''))
+            
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+PC', str(string).upper())
+        if m != None:
+            return float(m.group(0).replace('PC',''))
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.PC', str(string).upper())
+        if m != None:
+            return float(m.group(0).replace('PC',''))
+            
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+NR', str(string).upper())
+        if m != None:
+            return float(m.group(0).replace('NR',''))
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.NR', str(string).upper())
+        if m != None:
+            return float(m.group(0).replace('NR',''))
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.BTL', str(string).upper())
         if m != None:
@@ -222,10 +236,18 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+GL', str(string).upper())
         if m != None:
-            return float(m.group(0).replace('GL','')), 'GAL'
+            try:
+                return float(m.group(0).replace('GL','')), 'GAL'
+            except:
+                print('ERROR: ', m.group(0).replace('GL',''), 'GAL')
+                return np.nan, 'GAL' 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.GL', str(string).upper())
         if m != None:
-            return float(m.group(0).replace('GL','')), 'GAL'
+            try:
+                return float(m.group(0).replace('GL','')), 'GAL'
+            except:
+                print('ERROR: ', m.group(0).replace('GL',''), 'GAL')
+                return np.nan, 'GAL' 
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+G', str(string).upper())
         if m != None:
@@ -290,10 +312,10 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
 
     def regex_rule_container(self, string):
         string = ' ' + str(string).upper() + ' '
-        m = re.search(r'PKC|PK C|OZC|OZ C|SGLC|SGL C|PKCN|PK CN|OZCN|OZ CN|SGLCN| CAN| CANS| CN| CNS', string)
+        m = re.search(r'PKCN|PK CN|OZCN|OZ CN|SGLCN|SGL CN|PKC|PK C|PC|OZC|OZ C|SGLC|CANS|CAN|CNS|CN', string)
         if m != None:
             return 'Cans'
-        m = re.search(r'PKB|PK B|OZB|OZ B|SGLB|SGL B|PKBTL|PK BTL|OZBTL|OZ BTL|SGLBTL|BTL|BOTTLE|BOTTLES|ML B|MLB', string)
+        m = re.search(r'PKBTL|PK BTL|OZBTL|OZ BTL|SGLBTL|SGL BTL|ML BTL|MLBTL|PKB|PK B|OZB|OZ B|SGLB|BTL|BOTTLES|BOTTLE|ML B|MLB|BT|NR|LN', string)
         if m != None:
             return 'Bottles'
         # m = re.search(r' BOXED | BOX ', string)

@@ -11,6 +11,7 @@ from dbfread import DBF
 import datetime
 import xml.etree.ElementTree as ET
 import pandas as pd
+import numpy as np
 from package_configuration_class import PackageConfigurationParser
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -23,7 +24,7 @@ class processMPower(object):
             'rt_product_id','rt_upc_code','rt_brand_name',
             'rt_brand_description','rt_product_type','rt_product_category',
             'rt_package_size','rt_item_size','price_regular',
-            'price_sale','qty_on_hand'
+            'price_sale','qty_on_hand','wholesale_package_size'
             ]
         self.col_names_dict = {
             'product_id':'rt_product_id',
@@ -42,8 +43,34 @@ class processMPower(object):
             if c in numeric_cols:
                 df[c] = pd.to_numeric(df[c], errors='coerce').astype(float)
                 df[c] = df[c].fillna(0)
+            elif c in ['rt_upc_code']:
+                df[c] = df[c].fillna('').astype(str).str.rstrip('.0')
             else:
                 df[c] = df[c].fillna('').astype(str)
+        return df
+
+    def _clean_up(self, df):
+        # Check if non-required columns in the dataframe if not then set to empty string 
+        if 'rt_item_size' not in df.columns:
+            df['rt_item_size'] = ''
+        if 'rt_brand_name' not in df.columns:
+            df['rt_brand_name'] = ''
+        if 'rt_package_size' not in df.columns:
+            df['rt_package_size'] = ''
+        if 'rt_product_category' not in df.columns:
+            df['rt_product_category'] = ''
+        if 'rt_product_type' not in df.columns:
+            df['rt_product_type'] = ''
+        if 'rt_upc_code' not in df.columns:
+            df['rt_upc_code'] = ''
+        if 'wholesale_package_size' not in df.columns:
+            df['wholesale_package_size'] = ''
+        # Check if price_sale in the dataframe if not then set all price_sale to 0
+        if 'price_sale' not in df.columns:
+            df['price_sale'] = 0
+
+        df = df[df['price_regular'] != 0]
+        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
         return df
 
     def load_data(self, input_filenames):
@@ -60,17 +87,8 @@ class processMPower(object):
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
         df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
-
-        # Check if price_sale in the dataframe if not then set all price_sale to 0
-        if 'price_sale' not in df.columns: 
-            df['price_sale'] = 0
         
-        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
-        if 'rt_item_size' not in df.columns:
-            df['rt_item_size'] = ''
-
-        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
-
+        df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
@@ -118,12 +136,7 @@ class processTiger(processMPower):
         # set rt_product_category to equal rt_product_type since both are determined from deptid is file
         df['rt_product_category'] = df['rt_product_type']
         
-        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
-        if 'rt_item_size' not in df.columns:
-            df['rt_item_size'] = ''
-
-        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
-        
+        df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
@@ -178,12 +191,7 @@ class processAdvent(processTiger):
         df['price_sale'] = pd.to_numeric(df['price_sale'], errors='coerce')
         df['price_sale'] = df['price_sale'].fillna(0).astype(float)
         
-        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
-        if 'rt_item_size' not in df.columns:
-            df['rt_item_size'] = ''
-
-        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
-        
+        df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
@@ -225,20 +233,7 @@ class processCashRegisterExpress(processMPower):
         df['price_sale'] = pd.to_numeric(df['price_sale'], errors='coerce')
         df['price_sale'] = df['price_sale'].fillna(0).astype(float)
         
-        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
-        if 'rt_item_size' not in df.columns:
-            df['rt_item_size'] = ''
-        if 'rt_brand_name' not in df.columns:
-            df['rt_brand_name'] = ''
-        if 'rt_product_type' not in df.columns:
-            df['rt_product_type'] = ''
-        if 'rt_product_category' not in df.columns:
-            df['rt_product_category'] = df['rt_product_type']
-
-        df = df[df['price_regular'] != 0]
-
-        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
-        
+        df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
@@ -282,20 +277,7 @@ class processCashRegisterExpress_v2(processMPower):
         df['price_sale'] = pd.to_numeric(df['price_sale'], errors='coerce')
         df['price_sale'] = df['price_sale'].fillna(0).astype(float)
         
-        # Check if item_size in the dataframe if not then set all rt_item_size to empty string 
-        if 'rt_item_size' not in df.columns:
-            df['rt_item_size'] = ''
-        if 'rt_brand_name' not in df.columns:
-            df['rt_brand_name'] = ''
-        if 'rt_product_type' not in df.columns:
-            df['rt_product_type'] = ''
-        if 'rt_product_category' not in df.columns:
-            df['rt_product_category'] = ''
-
-        df = df[df['price_regular'] != 0]
-
-        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
-        
+        df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
@@ -393,28 +375,15 @@ class processLiquorPos(processMPower):
         # Create rt_brand_description as combo of brand and descrip
         df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
 
-        # # Fill np.nan qty_on_hand with 0
-        # df['qty_on_hand'] = df['qty_on_hand'].fillna(0)
-        # df['qty_on_hand'] = df['qty_on_hand'].apply(lambda x: float(x) if str(x).isdigit() else 0) # replace non-digits with zero
-
-        # Check if sale_price in the dataframe if not then set all sale_price to 0
-        if 'price_sale' not in df.columns: 
-            df['price_sale'] = 0
-        
-        # Check if item_size in the dataframe if not then set all item_size to empty string 
-        if 'rt_item_size' not in df.columns:
-            df['rt_item_size'] = ''
-
-        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
-        
+        df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
 
 
-class processSpirit2000(processLiquorPos):
+class processSpirit2000_dbf(processLiquorPos):
     def __init__(self):
-        super(processSpirit2000, self).__init__()
+        super(processSpirit2000_dbf, self).__init__()
         self.col_names_dict = {
             'sku':'rt_product_id',
             'upc':'rt_upc_code',
@@ -428,23 +397,6 @@ class processSpirit2000(processLiquorPos):
             'back':'qty_on_hand',
         }
         pass
-
-    # def load_data(self, input_filenames):
-    #     data = {k:[] for k in self.col_names_dict.keys()}
-    #     if '.xml' in input_filenames:
-    #         root = ET.parse(input_filenames).getroot()
-
-    #         for elem in root:
-    #             if 'webtable' in elem.tag:
-    #                 for k in data.keys():
-    #                     for value in elem.iter(k):
-    #                         data[k] += [value.text]
-                        
-    #         df = pd.DataFrame(data)
-    #         return df
-    #     else:
-    #         raise Exception("Unrecognized file type - expecting .xml.")
-    #     pass
 
     def read_dbf_files(self, input_filename): #Reads in DBF files and returns Pandas DF
         '''
@@ -490,7 +442,7 @@ class processSpirit2000(processLiquorPos):
                     df = df [['SKU','QTY','PRICE','SALE','ONSALE','WHO','LEVEL','TSTAMP']]
 
                     df['TSTAMP'] = pd.to_datetime(df['TSTAMP'])
-                    df[df['LEVEL'] == '1']
+                    df = df[df['LEVEL'] == '1']
 
                     idx = df.groupby(['SKU'])['QTY'].transform(max) == df['QTY']
                     df = df[idx]
@@ -534,56 +486,90 @@ class processSpirit2000(processLiquorPos):
         return final_df
 
     def process_data(self, df):
-        df = df.drop_duplicates(['SKU','SNAME','PACK'])
+        df = df.sort_values('UPC')
+        df = df.drop_duplicates('SKU', keep='first')
         # Lower the columns and rename
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
         df['rt_product_id'] = df['rt_product_id'].astype(str)
-        df['rt_brand_name'] = ''
         df['rt_package_size'] = df['rt_package_size'].astype(str) + ' pack'
-        df['rt_product_category'] = ''
 
-        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
-
+        df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
 
-class processSpirit2000_tower(processSpirit2000):
+class processSpirit2000_xml(processSpirit2000_dbf):
+    def __init__(self):
+        super(processSpirit2000_xml, self).__init__()
+        self.col_names_dict = {
+            'sku':'rt_product_id',
+            'upccode':'rt_upc_code',
+            'prodname':'rt_brand_description',
+            'catname':'rt_product_category',
+            'typename':'rt_product_type',
+            # 'sellqty':'rt_package_size',
+            'sizename':'rt_item_size',
+            'unitprice':'price_regular',
+            'sale':'price_sale',
+            'stockqty':'qty_on_hand',
+            'pack':'wholesale_package_size',
+            'onsale':'onsale'
+        }
+        pass
+
+    def load_data(self, input_filenames):
+        data = {k:[] for k in self.col_names_dict.keys()}
+        if '.xml' in input_filenames.lower():
+            root = ET.parse(input_filenames).getroot()
+            print(root)
+
+            for elem in root:
+                if 'webtable' in elem.tag:
+                    for k in data.keys():
+                        for value in elem.iter(k):
+                            data[k] += [value.text]
+                        
+            df = pd.DataFrame(data)
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .xml.")
+
+    def process_data(self, df):
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+        
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+        # df['rt_package_size'] = df['rt_package_size'].astype(str) + ' pack'
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str) + ' pack'
+
+        # Check if onsale flag is True then set the sale price if the sale price is greater than 0
+        df['price_sale'] = df.apply(lambda x: x['price_sale'] if str(x['onsale']) == 'T' and float(x['price_sale']) > 0 else 0.0, axis=1)
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+class processSpirit2000_tower(processSpirit2000_dbf):
     def __init__(self):
         super(processSpirit2000_tower, self).__init__()
         self.col_names_dict = {
             'sku':'rt_product_id',
             'upc':'rt_upc_code',
             'name':'rt_brand_description',
-            # 'catname':'rt_product_type',
             'typename':'rt_product_type',
             'qty':'rt_package_size',
             'sname':'rt_item_size',
             'price':'price_regular',
             'sale':'price_sale',
-            'back':'qty_on_hand',
         }
         pass
-
-    # def load_data(self, input_filenames):
-    #     data = {k:[] for k in self.col_names_dict.keys()}
-    #     if '.xml' in input_filenames:
-    #         root = ET.parse(input_filenames).getroot()
-
-    #         for elem in root:
-    #             if 'webtable' in elem.tag:
-    #                 for k in data.keys():
-    #                     for value in elem.iter(k):
-    #                         data[k] += [value.text]
-                        
-    #         df = pd.DataFrame(data)
-    #         return df
-    #     else:
-    #         raise Exception("Unrecognized file type - expecting .xml.")
-    #     pass
 
     def read_dbf_files(self, input_filename): #Reads in DBF files and returns Pandas DF
         '''
@@ -630,21 +616,21 @@ class processSpirit2000_tower(processSpirit2000):
 
                     df['TSTAMP'] = pd.to_datetime(df['TSTAMP'])
 
-                    if 'doraville' in f or 'buckhead' in f:
-                        df = df[df['LEVEL'] == '7']
-                        idx = df.groupby(['SKU'])['TSTAMP'].transform(max) == df['TSTAMP']
-                        df = df[idx]
+                    # if 'doraville' in f or 'buckhead' in f:
+                    df = df[df['LEVEL'] == '7']
+                    idx = df.groupby(['SKU'])['TSTAMP'].transform(max) == df['TSTAMP']
+                    df = df[idx]
                     df = df [['SKU','QTY','PRICE','SALE','ONSALE','WHO','LEVEL']]
 
                 elif 'stk.dbf' in f.lower():
                     df = self.read_dbf_files(f)
                     df = df[['SKU','BACK','TSTAMP']]
 
-                    if 'doraville' in f or 'buckhead' in f:
-                        df['TSTAMP'] = pd.to_datetime(df['TSTAMP'], )
+                    # if 'doraville' in f or 'buckhead' in f:
+                    df['TSTAMP'] = pd.to_datetime(df['TSTAMP'], )
 
-                        idx = df.groupby(['SKU'])['TSTAMP'].transform(max) == df['TSTAMP']
-                        df = df[idx]
+                    idx = df.groupby(['SKU'])['TSTAMP'].transform(max) == df['TSTAMP']
+                    df = df[idx]
                     df = df[['SKU','BACK']]
 
                 elif 'upc.dbf' in f.lower():
@@ -672,23 +658,82 @@ class processSpirit2000_tower(processSpirit2000):
         return final_df
 
     def process_data(self, df):
-        df = df.drop_duplicates()
+        df = df.sort_values('UPC')
+        df = df.drop_duplicates('SKU', keep='first')
+        df['qty_on_hand'] = df['BACK']/df['QTY']
         # Lower the columns and rename
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
+        
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
         df['rt_product_id'] = df['rt_product_id'].astype(str)
-        df['rt_brand_name'] = ''
         df['rt_package_size'] = df['rt_package_size'].astype(str) + ' pack'
-        df['rt_product_category'] = ''
 
-        df.drop_duplicates(subset=['rt_product_id'], inplace=True)
-
+        # print(df[df['rt_brand_description'].str.upper().str.contains('CROWN RUSSE VODKA')])
+        df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
         return df
 
+
+class processLightSpeed(processMPower):
+    def __init__(self):
+        super(processLightSpeed, self).__init__()
+        self.col_names_dict = {
+            'itemid':'rt_product_id',
+            'upc':'rt_upc_code',
+            # '':'rt_brand_name',
+            'description':'rt_brand_description',
+            'fullpathname':'rt_product_type',
+            'name':'rt_product_category',
+            # '':'rt_package_size',
+            'amount':'price_regular',
+            'qoh':'qty_on_hand'
+        }
+
+    def process_data(self, df):
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # df = df[df['rt_product_id'].apply(lambda x: str(x).rstrip('.0') if str(x).isdigit() else x)]
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+
+class processSquare(processMPower):
+    def __init__(self):
+        super(processSquare, self).__init__()
+        self.col_names_dict = {
+            'item_variation_object_id':'rt_product_id',
+            'item_variation_data.sku':'rt_upc_code',
+            # '':'rt_brand_name',
+            'item_data.name':'rt_brand_description',
+            'item_data.product_type':'rt_product_type',
+            'category_data.name':'rt_product_category',
+            'item_variation_data.name':'rt_package_size',
+            'item_variation_data.price_money.amount':'price_regular',
+            'quantity':'qty_on_hand'
+        }
+
+    def process_data(self, df):
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df['price_regular'] = df['price_regular'].apply(lambda x: float(x)/100)
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
 
 
 # All POS functions
@@ -731,8 +776,14 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'liquorpos':
         pos_proc = processLiquorPos()
 
-    elif retailer_pos.lower() == 'spirit2000':
-        pos_proc = processSpirit2000()
+    elif retailer_pos.lower() == 'spirit2000_dbf':
+        pos_proc = processSpirit2000_dbf()
+
+    elif retailer_pos.lower() == 'spirit2000_xml':
+        pos_proc = processSpirit2000_xml()
+
+    elif retailer_pos.lower() == 'spirit2000_tower':
+        pos_proc = processSpirit2000_tower()
     
     elif retailer_pos.lower() == 'cashregisterexpress':
         pos_proc = processCashRegisterExpress()
@@ -740,11 +791,8 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'cashregisterexpress_v2':
         pos_proc = processCashRegisterExpress_v2()
 
-    elif retailer_pos.lower() == 'spirit2000_tower':
-        pos_proc = processSpirit2000_tower()
-
-    elif retailer_pos.lower() == 'spirit2000':
-        pos_proc = processSpirit2000()
+    elif retailer_pos.lower() == 'lightspeed':
+        pos_proc = processLightSpeed()
 
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
@@ -794,7 +842,7 @@ def lambda_handler(event, context):
         'body': json.dumps('Success!')
     }
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
     # print("Testing processCashRegisterExpress()")
     # proc = processCashRegisterExpress()
     # df = proc.load_data('~/Downloads/square_b_handoff_1.csv')
@@ -862,13 +910,36 @@ def lambda_handler(event, context):
     # print('Testing processSpirit2000_tower() for buckhead.zip')
     # proc = processSpirit2000_tower()
     # df = proc.load_data('buckhead.zip')
-    # print(df)
-    # print(df.columns)
-    # print(df['SKU'].value_counts())
-    # print(df[df['SKU'] == 53223])
+    # # print(df)
+    # # print(df.columns)
+    # # print(df['SKU'].value_counts())
+    # # print(df[df['SKU'] == 53223])
+    # print(df[df['NAME'].str.upper().str.contains('CROWN RUSSE VODKA')][['SKU','NAME','SNAME','ML','PACK','SDATE','UPC','BACK','LEVEL','PRICE']])
     # df = proc.process_data(df)
-    # print(df.head())
-    # print(df['rt_product_id'].value_counts())
-    # print(df.shape)
+    # # print(df.head())
+    # # print(df['rt_product_id'].value_counts())
+    # # print(df.shape)
+    # print(df[df['rt_brand_description'].str.upper().str.contains('CROWN RUSSE VODKA')])
     # print('Saving test_buckhead.csv')
     # df.to_csv('test_buckhead.csv')
+
+    # print('Testing processLightSpeed() for Orchard_POS.csv')
+    # proc = processLightSpeed()
+    # df = proc.load_data('Orchard_POS.csv')
+    # df = proc.process_data(df)
+    # print('Saving test_Orchard_POS.csv')
+    # df.to_csv('test_Orchard_POS.csv')
+
+    # print('Testing processSpirit2000_xml() for GenPrice20201007172428.XML')
+    # proc = processSpirit2000_xml()
+    # df = proc.load_data('GenPrice20201007172428.XML')
+    # df = proc.process_data(df)
+    # print('Saving test_GenPrice20201007172428.XML')
+    # df.to_csv('test_gen_xml.csv')
+
+    print('Testing processSquare() for Square_test.csv')
+    proc = processSquare()
+    df = proc.load_data('Square_test.csv')
+    df = proc.process_data(df)
+    print('Saving test_Square_test.csv')
+    df.to_csv('test_Square_test.csv')
