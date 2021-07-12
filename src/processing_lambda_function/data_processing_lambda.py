@@ -491,8 +491,7 @@ class processSpirit2000_dbf(processLiquorPos):
         # Lower the columns and rename
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
-        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
-        # if product_id can not be a digit then change this to simply drop the first row
+
         df['rt_product_id'] = df['rt_product_id'].astype(str)
         df['rt_package_size'] = df['rt_package_size'].astype(str) + ' pack'
 
@@ -542,8 +541,6 @@ class processSpirit2000_xml(processSpirit2000_dbf):
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
         
-        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
-        # if product_id can not be a digit then change this to simply drop the first row
         df['rt_product_id'] = df['rt_product_id'].astype(str)
         # df['rt_package_size'] = df['rt_package_size'].astype(str) + ' pack'
         df['wholesale_package_size'] = df['wholesale_package_size'].astype(str) + ' pack'
@@ -665,8 +662,6 @@ class processSpirit2000_tower(processSpirit2000_dbf):
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
         
-        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
-        # if product_id can not be a digit then change this to simply drop the first row
         df['rt_product_id'] = df['rt_product_id'].astype(str)
         df['rt_package_size'] = df['rt_package_size'].astype(str) + ' pack'
 
@@ -697,9 +692,8 @@ class processLightSpeed(processMPower):
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
 
-        # df = df[df['rt_product_id'].apply(lambda x: str(x).rstrip('.0') if str(x).isdigit() else x)]
-        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
-        # if product_id can not be a digit then change this to simply drop the first row
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+
         df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
@@ -726,9 +720,33 @@ class processSquare(processMPower):
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
 
-        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
-        # if product_id can not be a digit then change this to simply drop the first row
         df['price_regular'] = df['price_regular'].apply(lambda x: float(x)/100)
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+class processCobaltConnect(processMPower):
+    def __init__(self):
+        super(processCobaltConnect, self).__init__()
+        self.col_names_dict = {
+            'product_code':'rt_product_id',
+            'upc':'rt_upc_code',
+            'name':'rt_brand_description',
+            'size':'rt_item_size',
+            'retail_price':'price_regular',
+            'stock_qoh':'qty_on_hand'
+        }
+
+    def process_data(self, df):
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+        # Missing Sale Price
 
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -937,9 +955,17 @@ if __name__ == "__main__":
     # print('Saving test_GenPrice20201007172428.XML')
     # df.to_csv('test_gen_xml.csv')
 
-    print('Testing processSquare() for Square_test.csv')
-    proc = processSquare()
-    df = proc.load_data('Square_test.csv')
-    df = proc.process_data(df)
-    print('Saving test_Square_test.csv')
-    df.to_csv('test_Square_test.csv')
+    # print('Testing processSquare() for Square_test.csv')
+    # proc = processSquare()
+    # df = proc.load_data('Square_test.csv')
+    # df = proc.process_data(df)
+    # print('Saving test_Square_test.csv')
+    # df.to_csv('test_Square_test.csv')
+
+    # print('Testing processCobaltConnect() for Square_test.csv')
+    # proc = processCobaltConnect()
+    # df = proc.load_data('WindsorCourt_productInventoryExport_07.07.2021.csv')
+    # print(df)
+    # df = proc.process_data(df)
+    # print('Saving test_CobaltConnect.csv')
+    # df.to_csv('test_CobaltConnect.csv')
