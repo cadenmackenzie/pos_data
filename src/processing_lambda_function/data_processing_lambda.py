@@ -732,13 +732,26 @@ class processCobaltConnect(processMPower):
     def __init__(self):
         super(processCobaltConnect, self).__init__()
         self.col_names_dict = {
-            'product_code':'rt_product_id',
+            'code':'rt_product_id',
             'upc':'rt_upc_code',
             'name':'rt_brand_description',
             'size':'rt_item_size',
             'retail_price':'price_regular',
-            'stock_qoh':'qty_on_hand'
+            'stock_qoh':'qty_on_hand',
+            'qtypercase':'wholesale_package_size'
         }
+
+    def clean_wholesale(self, x):
+        if str(x).split('.')[0].isdigit():
+            return str(int(x)) + ' Pack'
+        else:
+            return ''
+    
+    def clean_upc(self, x):
+        if str(x)[:2] == 'cc':
+            return str(x)[2:]
+        else:
+            return str(x)
 
     def process_data(self, df):
         # Lower the columns and rename
@@ -746,6 +759,12 @@ class processCobaltConnect(processMPower):
         df.rename(columns=self.col_names_dict, inplace=True)
 
         df['rt_product_id'] = df['rt_product_id'].astype(str)
+
+        # Remove 'cc' letters from beginning of UPC code
+        df['rt_upc_code'] = df['rt_upc_code'].apply(lambda x: self.clean_upc(x))
+
+        if 'wholesale_package_size' in df.columns:
+            df['wholesale_package_size'] = df['wholesale_package_size'].apply(lambda x: self.clean_wholesale(x))
         # Missing Sale Price
 
         df = self._clean_up(df)
@@ -812,6 +831,9 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'lightspeed':
         pos_proc = processLightSpeed()
 
+    elif retailer_pos.lower() == 'cobaltconnect':
+        pos_proc = processCobaltConnect()
+
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
@@ -860,7 +882,7 @@ def lambda_handler(event, context):
         'body': json.dumps('Success!')
     }
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # print("Testing processCashRegisterExpress()")
     # proc = processCashRegisterExpress()
     # df = proc.load_data('~/Downloads/square_b_handoff_1.csv')
@@ -962,9 +984,9 @@ if __name__ == "__main__":
     # print('Saving test_Square_test.csv')
     # df.to_csv('test_Square_test.csv')
 
-    # print('Testing processCobaltConnect() for Square_test.csv')
+    # print('Testing processCobaltConnect() for Windsor_Court.csv')
     # proc = processCobaltConnect()
-    # df = proc.load_data('WindsorCourt_productInventoryExport_07.07.2021.csv')
+    # df = proc.load_data('windsor_court.csv')
     # print(df)
     # df = proc.process_data(df)
     # print('Saving test_CobaltConnect.csv')
