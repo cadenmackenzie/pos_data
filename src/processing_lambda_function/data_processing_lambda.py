@@ -103,7 +103,7 @@ class processTiger(processMPower):
             'itemorder':'rt_brand_name',
             'itemname':'rt_brand_description',
             'deptid':'rt_product_type',
-            # 'deptid':'rt_product_category',
+            'catgid':'rt_product_category',
             'isize':'rt_package_size',
             'stdprice':'price_regular',
             'webprice':'price_sale',
@@ -115,6 +115,9 @@ class processTiger(processMPower):
         if '.csv' in input_filenames:
             df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
             return df
+        # if '.csv' in input_filenames:
+        #     df = pd.read_csv(input_filenames) # read in filename as str
+        #     return df
         else:
             raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
         pass
@@ -125,16 +128,13 @@ class processTiger(processMPower):
 
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
-        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
 
         # For both rt_product_type and rt_product_category turn deptid into category
-        df['rt_product_type'] = df['rt_product_type'].astype(str).apply(lambda x: 'BEER' if x == '3' \
-                                                                        else 'LIQUOR' if x == '2' \
-                                                                        else 'WINE' if x == '4' \
+        df['rt_product_type'] = df['rt_product_type'].astype(str).apply(lambda x: 'BEER' if x == '3.0' \
+                                                                        else 'LIQUOR' if x == '2.0' \
+                                                                        else 'WINE' if x == '4.0' \
                                                                         else 'EXTRAS')
-
-        # set rt_product_category to equal rt_product_type since both are determined from deptid is file
-        df['rt_product_category'] = df['rt_product_type']
         
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -500,6 +500,122 @@ class processSpirit2000_dbf(processLiquorPos):
         df = df[self.cols]
         return df
 
+
+class processSpirit2000_csv(processSpirit2000_dbf):
+    def __init__(self):
+        super(processSpirit2000_csv, self).__init__()
+        self.col_names_dict = {
+            'sku':'rt_product_id',
+            'upc':'rt_upc_code',
+            'name':'rt_brand_description',
+            # 'catname':'rt_product_type',
+            'typename':'rt_product_type',
+            'qty':'rt_package_size',
+            'sname':'rt_item_size',
+            'price':'price_regular',
+            'sale':'price_sale',
+            'back':'qty_on_hand',
+            'pack':'wholesale_package_size'
+        }
+        pass
+
+    def extract_files(self, file_path):
+        '''
+        Adapted from https://stackoverflow.com/questions/56786321/read-multiple-csv-files-zipped-in-one-file
+        '''
+        with ZipFile(file_path, "r") as z:
+            z.extractall()
+        
+        print('glob unzipped path: ',glob('tmp/*'))
+        
+        file_paths = glob('tmp/*.csv')
+        print(file_paths)
+        return file_paths
+
+    def load_data(self, input_filename):
+        count = 0
+        if '.zip' in input_filename:
+            # Read .zip file
+            file_paths = self.extract_files(input_filename)
+            print('Spirit 2000.csv filepaths: ', file_paths)
+            # iterate through files in .zip file and read into pandas dataframe
+            for f in file_paths:
+                print('filename: ', f)
+                if 'inv.csv' in f.lower():
+                    df = pd.read_csv(f)
+                    df = df[['sku','name','sname','ml','pack','sdate','typename','websent','sent']]
+
+
+                elif 'prc.csv' in f.lower():
+                    df = pd.read_csv(f)
+                    # print(df)
+                    df = df[['sku','qty','price','sale','onsale','who','level','tstamp']]
+
+                    df['tstamp'] = pd.to_datetime(df['tstamp'])
+                    df['level'] = df['level'].astype(str)
+                    df = df[df['level'] == '1']
+
+                    idx = df.groupby(['sku'])['qty'].transform(max) == df['qty']
+                    df = df[idx]
+                    idx = df.groupby(['sku'])['tstamp'].transform(max) == df['tstamp']
+                    df = df[idx]
+
+                    df = df[['sku','qty','price','sale','onsale','who','level']]
+
+                elif 'stk.csv' in f.lower():
+                    df = pd.read_csv(f)
+                    df = df[['sku','back','tstamp']]
+
+                    df['tstamp'] = pd.to_datetime(df['tstamp'], )
+
+                    idx = df.groupby(['sku'])['tstamp'].transform(max) == df['tstamp']
+                    df = df[idx]
+                    df = df[['sku','back']]
+
+                elif 'upc.csv' in f.lower():
+                    df = pd.read_csv(f)
+                    df = df[['sku','upc','tstamp']]
+
+                    df['tstamp'] = pd.to_datetime(df['tstamp'])
+
+                    idx = df.groupby(['sku'])['tstamp'].transform(max) == df['tstamp']
+                    df = df[idx]
+                    df = df[['sku','upc']]
+                else:
+                    pass
+
+                if count == 0:
+                    final_df = df
+                elif count > 0:
+                    if 'sku' in final_df.columns and 'sku' in df.columns:
+                        final_df['sku'] = final_df['sku'].astype(str)
+                        df['sku'] = df['sku'].astype(str)
+
+                        final_df = final_df.merge(df, on=['sku'])
+                    else:
+                        raise Exception("Can't find unique key - expecting 'sku' to be unique key.")
+                count += 1
+        else:
+            raise Exception("Unrecognized file type - expecting .zip of .csv files")
+        return final_df
+
+    def process_data(self, df):
+        df = df.sort_values('upc')
+        df = df.drop_duplicates('sku', keep='first')
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+        df['rt_package_size'] = df['rt_package_size'].astype(str) + ' pack'
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str) + ' pack'
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+        
+
 class processSpirit2000_xml(processSpirit2000_dbf):
     def __init__(self):
         super(processSpirit2000_xml, self).__init__()
@@ -772,6 +888,64 @@ class processCobaltConnect(processMPower):
         df = df[self.cols]
         return df
 
+class processKMDS(processMPower):
+    def __init__(self):
+        super(processKMDS, self).__init__()
+        self.col_names_dict = {
+            'id':'rt_product_id',
+            'upc':'rt_upc_code',
+            'description':'rt_brand_description',
+            'price':'price_regular',
+            'onhand':'qty_on_hand',
+            'unitspercase':'wholesale_package_size',
+            'salesdepartmentid':'rt_product_category',
+            # 'oz':'rt_item_size',
+            # 'caseqty':'rt_package_size'
+        }
+
+    def load_data(self, input_filenames):        
+        if '.csv' in input_filenames:
+            df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
+        pass
+
+    def clean_wholesale(self, x):
+        if str(x).split('.')[0].isdigit():
+            return str(int(x)) + ' Pack'
+        else:
+            return ''
+
+    def clean_item_size(self, x):
+        try:
+            x = float(x)
+            if x > 1:
+                return str(round(x , 2))+'oz'
+        except:
+            return x
+
+    def process_data(self, df):
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        df = df[df['rt_product_id'].apply(lambda x: x.isnumeric())]
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+
+        df['rt_product_category'] = df['rt_product_category'].astype(str)
+
+        if 'rt_item_size' in df.columns:
+            df['rt_item_size'] = df['rt_item_size'].apply(lambda x: self.clean_item_size(x))
+
+        if 'wholesale_package_size' in df.columns:
+            df['wholesale_package_size'] = df['wholesale_package_size'].apply(lambda x: self.clean_wholesale(x))
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
 
 # All POS functions
 def get_retailer_info(filename):
@@ -816,6 +990,9 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'spirit2000_dbf':
         pos_proc = processSpirit2000_dbf()
 
+    elif retailer_pos.lower() == 'spirit2000_csv':
+        pos_proc = processSpirit2000_csv()
+
     elif retailer_pos.lower() == 'spirit2000_xml':
         pos_proc = processSpirit2000_xml()
 
@@ -833,6 +1010,9 @@ def process_pos(input_filename, output_filename):
 
     elif retailer_pos.lower() == 'cobaltconnect':
         pos_proc = processCobaltConnect()
+
+    elif retailer_pos.lower() == 'kmds':
+        pos_proc = processKMDS()
 
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
@@ -882,7 +1062,7 @@ def lambda_handler(event, context):
         'body': json.dumps('Success!')
     }
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
     # print("Testing processCashRegisterExpress()")
     # proc = processCashRegisterExpress()
     # df = proc.load_data('~/Downloads/square_b_handoff_1.csv')
@@ -991,3 +1171,38 @@ def lambda_handler(event, context):
     # df = proc.process_data(df)
     # print('Saving test_CobaltConnect.csv')
     # df.to_csv('test_CobaltConnect.csv')
+
+    # print('Testing processKMDS() for hillsboro_inventory-Caden-07_29_2021 09_28_17.csv')
+    # proc = processKMDS()
+    # df = proc.load_data('hillsboro_inventory-Caden-07_29_2021 09_28_17.csv')
+    # print(df[['Oz','Description','StockNumber','QtyPackPrice','QtyPack','SubPack','UnitsPerPack','UnitsPerOrder','UnitsPerCase','CaseQty']])
+    # print(df)
+    # df = proc.process_data(df)
+    # print('Saving test_KMDS.csv')
+    # df.to_csv('test_KMDS.csv')
+
+    # print("Testing TigerPOS() for candc2_handoff.csv")
+    # proc = processTiger()
+    # df = proc.load_data('candc2_handoff.csv')
+    # df = proc.process_data(df)
+    # print(df.head())
+    # print('Saving test_Tiger.csv')
+    # df.to_csv('test_Tiger.csv')
+
+    # print("Testing processSpirit2000_csv() for sweetwater.zip")
+    # proc = processSpirit2000_csv()
+    # df = proc.load_data('sweetwater.zip')
+    # df = proc.process_data(df)
+    # print(df.head())
+    # print('Saving test_Spiritcsv_sweetwater.csv')
+    # df.to_csv('test_Spiritcsv_sweetwater.csv')
+
+    # print("Testing processSpirit2000_csv() for liquorbarn.zip")
+    # proc = processSpirit2000_csv()
+    # df = proc.load_data('liquorbarn.zip')
+    # df = proc.process_data(df)
+    # print(df.head())
+    # print('Saving test_Spiritcsv_liquorbarn.csv')
+    # df.to_csv('test_Spiritcsv_liquorbarn.csv')
+
+    
