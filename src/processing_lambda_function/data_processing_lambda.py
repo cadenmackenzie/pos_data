@@ -899,7 +899,7 @@ class processKMDS(processMPower):
             'onhand':'qty_on_hand',
             'unitspercase':'wholesale_package_size',
             'salesdepartmentid':'rt_product_category',
-            # 'oz':'rt_item_size',
+            'description.1':'rt_item_size',
             # 'caseqty':'rt_package_size'
         }
 
@@ -1172,14 +1172,15 @@ if __name__ == "__main__":
     # print('Saving test_CobaltConnect.csv')
     # df.to_csv('test_CobaltConnect.csv')
 
-    # print('Testing processKMDS() for hillsboro_inventory-Caden-07_29_2021 09_28_17.csv')
-    # proc = processKMDS()
-    # df = proc.load_data('hillsboro_inventory-Caden-07_29_2021 09_28_17.csv')
-    # print(df[['Oz','Description','StockNumber','QtyPackPrice','QtyPack','SubPack','UnitsPerPack','UnitsPerOrder','UnitsPerCase','CaseQty']])
-    # print(df)
-    # df = proc.process_data(df)
-    # print('Saving test_KMDS.csv')
-    # df.to_csv('test_KMDS.csv')
+    print('Testing processKMDS() for hillsboro_inventory.csv')
+    proc = processKMDS()
+    df = proc.load_data('hillsboro_inventory.csv')
+    print(df[['Oz','Description','StockNumber','QtyPackPrice','QtyPack','SubPack','UnitsPerPack','UnitsPerOrder','UnitsPerCase','CaseQty']])
+    print(df)
+    df.to_csv('test_KMDS_unprocessed.csv')
+    df = proc.process_data(df)
+    print('Saving test_KMDS.csv')
+    df.to_csv('test_KMDS.csv')
 
     # print("Testing TigerPOS() for candc2_handoff.csv")
     # proc = processTiger()
