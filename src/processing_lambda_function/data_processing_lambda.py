@@ -342,10 +342,12 @@ class processLiquorPos(processMPower):
                 print('filename: ', f)
                 if 'barcodes.dbf' in f.lower():
                     df = self.read_dbf_files(f)
+                    df.to_csv('barcodes.csv')
                     df = df[['CODE_NUM','BARCODE']]
                 elif 'liqcode.dbf' in f.lower():
                     df = self.read_dbf_files(f)
                     df.drop(['BARCODE'], axis=1, inplace=True)
+                    df.to_csv('liqcode.csv')
                 else:
                     pass
 
@@ -893,27 +895,32 @@ class processKMDS(processMPower):
         super(processKMDS, self).__init__()
         self.col_names_dict = {
             'id':'rt_product_id',
-            'upc':'rt_upc_code',
+            # 'upc':'rt_upc_code',
             'description':'rt_brand_description',
             'price':'price_regular',
             'onhand':'qty_on_hand',
-            'unitspercase':'wholesale_package_size',
+            # 'unitspercase':'wholesale_package_size',
             'salesdepartmentid':'rt_product_category',
             'description.1':'rt_item_size',
             # 'caseqty':'rt_package_size'
         }
 
-    def load_data(self, input_filenames):        
+    def load_data(self, input_filenames): 
         if '.csv' in input_filenames:
-            df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
-            return df
+            df = pd.read_csv(input_filenames) # read in filename as str
+            return df       
+        # if '.csv' in input_filenames:
+        #     df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
+        #     return df
         else:
             raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
         pass
 
     def clean_wholesale(self, x):
-        if str(x).split('.')[0].isdigit():
-            return str(int(x)) + ' Pack'
+        if int(x['sizecaseqty']) > 1:
+            return str(int(x['sizecaseqty'])) + ' Pack'
+        if str(x['unitspercase']).split('.')[0].isdigit():
+            return str(int(x['unitspercase'])) + ' Pack'
         else:
             return ''
 
@@ -925,21 +932,29 @@ class processKMDS(processMPower):
         except:
             return x
 
+    def clean_records(self, x):
+        if x['rt_product_id'] == x['upcitemid']:
+            return '-1'
+        else:
+            return x['upcitemid']
+        
+
     def process_data(self, df):
         # Lower the columns and rename
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
 
-        df = df[df['rt_product_id'].apply(lambda x: x.isnumeric())]
+        # df = df[df['rt_product_id'].apply(lambda x: x.isnumeric())]
         df['rt_product_id'] = df['rt_product_id'].astype(str)
+        df['rt_upc_code'] = df.apply(lambda x: self.clean_records(x), axis=1)
+        df = df.groupby('rt_product_id', as_index=False).apply(lambda x: x[x.rt_upc_code.str.len() == x.rt_upc_code.str.len().max()])
 
         df['rt_product_category'] = df['rt_product_category'].astype(str)
 
+        df['wholesale_package_size'] = df.apply(lambda x: self.clean_wholesale(x), axis=1)
+
         if 'rt_item_size' in df.columns:
             df['rt_item_size'] = df['rt_item_size'].apply(lambda x: self.clean_item_size(x))
-
-        if 'wholesale_package_size' in df.columns:
-            df['wholesale_package_size'] = df['wholesale_package_size'].apply(lambda x: self.clean_wholesale(x))
 
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -1093,6 +1108,7 @@ if __name__ == "__main__":
     # print("Testing LiquorPOS() for kingsolomon.zip")
     # proc = processLiquorPos()
     # df = proc.load_data('kingsolomon.zip')
+    # df.to_csv('test_kingsolomon.csv')
     # df = proc.process_data(df)
     # print(df.head())
     # print(df.shape)
@@ -1172,11 +1188,9 @@ if __name__ == "__main__":
     # print('Saving test_CobaltConnect.csv')
     # df.to_csv('test_CobaltConnect.csv')
 
-    print('Testing processKMDS() for hillsboro_inventory.csv')
+    print('Testing processKMDS() for hillsboro_inventory_new.csv')
     proc = processKMDS()
-    df = proc.load_data('hillsboro_inventory.csv')
-    print(df[['Oz','Description','StockNumber','QtyPackPrice','QtyPack','SubPack','UnitsPerPack','UnitsPerOrder','UnitsPerCase','CaseQty']])
-    print(df)
+    df = proc.load_data('hillsboro_inventory_new.csv')
     df.to_csv('test_KMDS_unprocessed.csv')
     df = proc.process_data(df)
     print('Saving test_KMDS.csv')
