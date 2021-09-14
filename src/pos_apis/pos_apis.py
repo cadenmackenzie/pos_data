@@ -238,8 +238,11 @@ class connectSquarePos(connectLightSpeedPos):
     self.timestamp = None
     self.token = None
     # self.store_account_id = None
-    self.data_size = 1
-    self.limit = 100
+    # self.data_size = 1
+    # self.limit = 100
+    # pull the client_id and client_secret
+    self.client_id = 'sq0idp-89PGcygTFfFCrmOpzGoF5g'
+    self.client_secret = 'sq0csp-1RTykI-Ta_amx9JWASZpIXbbnw3fDqiaVRLljnsonrU'
     self.configure()
     pass
 
@@ -247,8 +250,33 @@ class connectSquarePos(connectLightSpeedPos):
     '''
     Get access token for API access
     '''
-    self.token = self.refresh_token
-    pass
+    if self.token == None:
+      print('Retrieving Token...')
+      headers = {
+          'Square-Version': '2021-06-16',
+          'Content-Type': 'application/json',
+      }
+
+      data = '{ "grant_type": "refresh_token", "refresh_token": "'+str(self.refresh_token) +'", "client_id": "' + str(self.client_id) + '", "client_secret": "' + str(self.client_secret) + '" }'
+
+      response = requests.post('https://connect.squareup.com/oauth2/token', headers=headers, data=data)
+
+      if response.status_code == 200:
+        print(response.json())
+        response = response.json()
+        self.token = response['access_token']
+        print(self.token)
+        self.refresh_token = response['refresh_token']
+        return
+
+      else:
+        print("ERROR: can't retrive token.")
+        print(response.json())
+        return
+
+    else:
+      print('Token is not expired')
+      pass
 
   def get_item_data(self, offset):
     '''
@@ -432,6 +460,7 @@ class connectSquarePos(connectLightSpeedPos):
     # Get item info
     while True:
       print(f'offset {offset}')
+      self.get_token()
 
       partial_data_df, cursor = func(offset=offset)
 

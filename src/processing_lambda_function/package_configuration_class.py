@@ -341,12 +341,65 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
                 print('ERROR: ', m.group(0).replace('G',''), 'GAL')
                 return np.nan, 'GAL' 
 
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+LITER', str(string).upper())
+        if m != None:
+            try:
+                return np.absolute(float(m.group(0).replace('LITER',''))), 'L'
+            except:
+                print('ERROR: ', np.absolute(float(m.group(0).replace('LITER',''))), 'L')
+                return np.nan, 'L' 
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.LITER', str(string).upper())
+        if m != None:
+            try:
+                return np.absolute(float(m.group(0).replace('LITER',''))), 'L'
+            except:
+                print('ERROR: ', np.absolute(float(m.group(0).replace('LITER',''))), 'L')
+                return np.nan, 'L' 
+        
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+LTR', str(string).upper())
+        if m != None:
+            try:
+                return np.absolute(float(m.group(0).replace('LTR',''))), 'L'
+            except:
+                print('ERROR: ', np.absolute(float(m.group(0).replace('LTR',''))), 'L')
+                return np.nan, 'L' 
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.LTR', str(string).upper())
+        if m != None:
+            try:
+                return np.absolute(float(m.group(0).replace('LTR',''))), 'L'
+            except:
+                print('ERROR: ', np.absolute(float(m.group(0).replace('LTR',''))), 'L')
+                return np.nan, 'L' 
+
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+LIT', str(string).upper())
+        if m != None:
+            try:
+                return np.absolute(float(m.group(0).replace('LIT',''))), 'L'
+            except:
+                print('ERROR: ', np.absolute(float(m.group(0).replace('LIT',''))), 'L')
+                return np.nan, 'L' 
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.LIT', str(string).upper())
+        if m != None:
+            try:
+                return np.absolute(float(m.group(0).replace('LIT',''))), 'L'
+            except:
+                print('ERROR: ', np.absolute(float(m.group(0).replace('LIT',''))), 'L')
+                return np.nan, 'L' 
+        
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+LT', str(string).upper())
         if m != None:
-            return np.absolute(float(m.group(0).replace('LT',''))), 'L'
+            try:
+                return np.absolute(float(m.group(0).replace('LT',''))), 'L'
+            except:
+                print('ERROR: ', np.absolute(float(m.group(0).replace('LT',''))), 'L')
+                return np.nan, 'L' 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.LT', str(string).upper())
         if m != None:
-            return np.absolute(float(m.group(0).replace('LT',''))), 'L'
+            try:
+                return np.absolute(float(m.group(0).replace('LT',''))), 'L'
+            except:
+                print('ERROR: ', np.absolute(float(m.group(0).replace('LT',''))), 'L')
+                return np.nan, 'L' 
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+L', str(string).upper())
         if m != None:
