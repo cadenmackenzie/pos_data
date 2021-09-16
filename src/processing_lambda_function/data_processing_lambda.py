@@ -342,12 +342,10 @@ class processLiquorPos(processMPower):
                 print('filename: ', f)
                 if 'barcodes.dbf' in f.lower():
                     df = self.read_dbf_files(f)
-                    df.to_csv('barcodes.csv')
                     df = df[['CODE_NUM','BARCODE']]
                 elif 'liqcode.dbf' in f.lower():
                     df = self.read_dbf_files(f)
                     df.drop(['BARCODE'], axis=1, inplace=True)
-                    df.to_csv('liqcode.csv')
                 else:
                     pass
 
@@ -526,12 +524,12 @@ class processSpirit2000_csv(processSpirit2000_dbf):
         Adapted from https://stackoverflow.com/questions/56786321/read-multiple-csv-files-zipped-in-one-file
         '''
         with ZipFile(file_path, "r") as z:
-            z.extractall()
+            z.extractall("/tmp/")
+            
+        unzipped_path = '/tmp/tmp/'
         
-        print('glob unzipped path: ',glob('tmp/*'))
-        
-        file_paths = glob('tmp/*.csv')
-        print(file_paths)
+        file_paths = glob(unzipped_path+'/*.csv')
+
         return file_paths
 
     def load_data(self, input_filename):
@@ -1077,7 +1075,7 @@ def lambda_handler(event, context):
         'body': json.dumps('Success!')
     }
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # print("Testing processCashRegisterExpress()")
     # proc = processCashRegisterExpress()
     # df = proc.load_data('~/Downloads/square_b_handoff_1.csv')
@@ -1188,13 +1186,13 @@ if __name__ == "__main__":
     # print('Saving test_CobaltConnect.csv')
     # df.to_csv('test_CobaltConnect.csv')
 
-    print('Testing processKMDS() for hillsboro_inventory_new.csv')
-    proc = processKMDS()
-    df = proc.load_data('hillsboro_inventory_new.csv')
-    df.to_csv('test_KMDS_unprocessed.csv')
-    df = proc.process_data(df)
-    print('Saving test_KMDS.csv')
-    df.to_csv('test_KMDS.csv')
+    # print('Testing processKMDS() for hillsboro_inventory_new.csv')
+    # proc = processKMDS()
+    # df = proc.load_data('hillsboro_inventory_new.csv')
+    # df.to_csv('test_KMDS_unprocessed.csv')
+    # df = proc.process_data(df)
+    # print('Saving test_KMDS.csv')
+    # df.to_csv('test_KMDS.csv')
 
     # print("Testing TigerPOS() for candc2_handoff.csv")
     # proc = processTiger()
