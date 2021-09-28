@@ -514,7 +514,7 @@ class processSpirit2000_csv(processSpirit2000_dbf):
             'sname':'rt_item_size',
             'price':'price_regular',
             'sale':'price_sale',
-            'back':'qty_on_hand',
+            # 'back':'qty_on_hand',
             'pack':'wholesale_package_size'
         }
         pass
@@ -602,6 +602,9 @@ class processSpirit2000_csv(processSpirit2000_dbf):
     def process_data(self, df):
         df = df.sort_values('upc')
         df = df.drop_duplicates('sku', keep='first')
+        
+        df['qty_on_hand'] = df['back']/df['qty']
+        
         # Lower the columns and rename
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
@@ -773,7 +776,9 @@ class processSpirit2000_tower(processSpirit2000_dbf):
     def process_data(self, df):
         df = df.sort_values('UPC')
         df = df.drop_duplicates('SKU', keep='first')
+        
         df['qty_on_hand'] = df['BACK']/df['QTY']
+        
         # Lower the columns and rename
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
