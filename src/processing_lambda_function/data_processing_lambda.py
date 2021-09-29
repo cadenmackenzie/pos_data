@@ -155,11 +155,17 @@ class processWinePOS(processMPower):
             float(x['pack_price_regular']) if x['pack_price_regular'] > float(0) else float(x['unit_price_regular']), 
             axis=1)
 
+        # if not zero then use this price (if today's date falls inbetween sale start and end date)
         df['sale_price'] = df.apply(lambda x: self.get_sale_price(x), axis=1)
 
+        # Consumable units on hand need to divide by rt_package_size to get retail units on hand
         df['qty_on_hand'] = df.apply(lambda x:
             x['qty_on_hand'] / df['rt_package_size'],
             axis=1)
+
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str) + ' Pack'
+        
+        df['rt_package_size'] = df['rt_package_size'].astype(str) + ' Pack'
 
         df = self._clean_up(df)
         df = self._check_data_types(df)
