@@ -193,8 +193,12 @@ class processTiger(processMPower):
     
     def load_data(self, input_filenames):        
         if '.csv' in input_filenames:
-            df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
-            return df
+            try:
+                df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter (for original script)
+                return df
+            except:
+                df = pd.read_csv(input_filenames) # read in filename as str using , as delimiter (for cloud connector)
+                return df
         # if '.csv' in input_filenames:
         #     df = pd.read_csv(input_filenames) # read in filename as str
         #     return df
