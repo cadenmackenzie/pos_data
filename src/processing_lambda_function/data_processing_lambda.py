@@ -94,6 +94,79 @@ class processMPower(object):
         return df
 
 
+class processWinePOS(processMPower):
+    def __init__(self):
+        super(processWinePOS, self).__init__()
+        self.col_names_dict = {
+            0:'rt_product_id',
+            12:'rt_upc_code',
+            # :'rt_brand_name',
+            1:'rt_brand_description',
+            14:'rt_product_type',
+            4:'rt_item_size',
+            15:'rt_product_category',
+            9:'rt_package_size',
+            7:'unit_price_regular',
+            8:'pack_price_regular', # if not zero then use this price
+            19:'unit_price_sale',
+            20:'pack_price_sale', # if not zero then use this price (if today's date falls inbetween sale start and end date)
+            11:'qty_on_hand', # Consumable units on hand need to divide by rt_package_size to get retail units on hand
+            6:'wholesale_package_size',
+            21:'sale_date_start',
+            22:'sale_date_end',
+        }
+        pass
+
+    def get_sale_price(self, x):
+        if x['pack_price_regular'] > 0:
+            sale_price = x['pack_price_regular']
+        elif x['unit_price_regular'] > 0:
+            sale_price = x['unit_price_regular']
+        else:
+            sale_price = 0
+
+        today = datetime.datetime.today()
+        if today >= x['sale_date_start'] and today <= x['sale_date_end']:
+            return sale_price
+        else:
+            return 0
+
+    def load_data(self, input_filenames):        
+        if '.txt' in input_filenames:
+            df = pd.read_csv(input_filenames, sep='\t', header=None) # read in filename as str using \t as delimiter
+            return df
+        else:
+            raise Exception("Unrecognized file type - expecting .txt")
+        pass
+
+    def process_data(self, df):
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # format columns
+        df['pack_price_regular'] = df['pack_price_regular'].astype(float)
+        df['unit_price_regular'] = df['unit_price_regular'].astype(float)
+        df['unit_price_sale'] = df['unit_price_sale'].astype(float)
+        df['pack_price_sale'] = df['pack_price_sale'].astype(float)
+        df['sale_date_start'] = pd.to_datetime(df['sale_date_start'])
+        df['sale_date_end'] = pd.to_datetime(df['sale_date_end'])
+
+        # if not zero then use pack_price_regular otherwise use unit_price_regular
+        df['price_regular'] = df.apply(lambda x: 
+            float(x['pack_price_regular']) if x['pack_price_regular'] > float(0) else float(x['unit_price_regular']), 
+            axis=1)
+
+        df['sale_price'] = df.apply(lambda x: self.get_sale_price(x), axis=1)
+
+        df['qty_on_hand'] = df.apply(lambda x:
+            x['qty_on_hand'] / df['rt_package_size'],
+            axis=1)
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+
 class processTiger(processMPower):
     def __init__(self):
         super(processTiger, self).__init__()
@@ -1032,6 +1105,9 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'kmds':
         pos_proc = processKMDS()
 
+    elif retailer_pos.lower() == 'winepos':
+        pos_proc = processWinePos()
+
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
@@ -1081,6 +1157,17 @@ def lambda_handler(event, context):
     }
 
 # if __name__ == "__main__":
+#     print('Testing processWinePos()')
+#     proc = processWinePOS()
+#     df = proc.load_data('davidsons-1.txt')
+#     print(df.head())
+#     print(df.shape)
+#     df = proc.process_data(df)
+#     print(df.head())
+#     print(df.shape)
+#     print('Saving test_processWinePos.csv')
+#     df.to_csv('test_processWinePos.csv')
+
     # print("Testing processCashRegisterExpress()")
     # proc = processCashRegisterExpress()
     # df = proc.load_data('~/Downloads/square_b_handoff_1.csv')
