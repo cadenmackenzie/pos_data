@@ -94,9 +94,9 @@ class processMPower(object):
         return df
 
 
-class processWinePOS(processMPower):
+class processWinePos(processMPower):
     def __init__(self):
-        super(processWinePOS, self).__init__()
+        super(processWinePos, self).__init__()
         self.col_names_dict = {
             0:'rt_product_id',
             12:'rt_upc_code',
@@ -118,14 +118,15 @@ class processWinePOS(processMPower):
         pass
 
     def get_sale_price(self, x):
-        if x['pack_price_regular'] > 0:
-            sale_price = x['pack_price_regular']
-        elif x['unit_price_regular'] > 0:
-            sale_price = x['unit_price_regular']
+        if x['pack_price_sale'] > 0:
+            sale_price = x['pack_price_sale']
+        elif x['unit_price_sale'] > 0:
+            sale_price = x['unit_price_sale']
         else:
             sale_price = 0
 
         today = datetime.datetime.today()
+        
         if today >= x['sale_date_start'] and today <= x['sale_date_end']:
             return sale_price
         else:
@@ -156,11 +157,11 @@ class processWinePOS(processMPower):
             axis=1)
 
         # if not zero then use this price (if today's date falls inbetween sale start and end date)
-        df['sale_price'] = df.apply(lambda x: self.get_sale_price(x), axis=1)
+        df['price_sale'] = df.apply(lambda x: self.get_sale_price(x), axis=1)
 
         # Consumable units on hand need to divide by rt_package_size to get retail units on hand
         df['qty_on_hand'] = df.apply(lambda x:
-            x['qty_on_hand'] / df['rt_package_size'],
+            x['qty_on_hand'] / x['rt_package_size'],
             axis=1)
 
         df['wholesale_package_size'] = df['wholesale_package_size'].astype(str) + ' Pack'
@@ -1162,17 +1163,18 @@ def lambda_handler(event, context):
         'body': json.dumps('Success!')
     }
 
-# if __name__ == "__main__":
-#     print('Testing processWinePos()')
-#     proc = processWinePOS()
-#     df = proc.load_data('davidsons-1.txt')
-#     print(df.head())
-#     print(df.shape)
-#     df = proc.process_data(df)
-#     print(df.head())
-#     print(df.shape)
-#     print('Saving test_processWinePos.csv')
-#     df.to_csv('test_processWinePos.csv')
+if __name__ == "__main__":
+    print('Testing processWinePos()')
+    proc = processWinePos()
+    df = proc.load_data('davidsons-1.txt')
+    df.to_csv('test_winepos.csv')
+    print(df.head())
+    print(df.shape)
+    df = proc.process_data(df)
+    print(df.head())
+    print(df.shape)
+    print('Saving test_processWinePos.csv')
+    df.to_csv('test_processWinePos.csv')
 
     # print("Testing processCashRegisterExpress()")
     # proc = processCashRegisterExpress()
