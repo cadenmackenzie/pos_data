@@ -193,7 +193,11 @@ class processTiger(processMPower):
     
     def load_data(self, input_filenames):        
         if '.csv' in input_filenames:
-            df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
+            # try:
+            #     df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter (for original script)
+            #     return df
+            # except:
+            df = pd.read_csv(input_filenames) # read in filename as str using , as delimiter (for cloud connector)
             return df
         # if '.csv' in input_filenames:
         #     df = pd.read_csv(input_filenames) # read in filename as str
@@ -1164,17 +1168,17 @@ def lambda_handler(event, context):
     }
 
 if __name__ == "__main__":
-    print('Testing processWinePos()')
-    proc = processWinePos()
-    df = proc.load_data('davidsons-1.txt')
-    df.to_csv('test_winepos.csv')
-    print(df.head())
-    print(df.shape)
-    df = proc.process_data(df)
-    print(df.head())
-    print(df.shape)
-    print('Saving test_processWinePos.csv')
-    df.to_csv('test_processWinePos.csv')
+#     print('Testing processWinePos()')
+#     proc = processWinePos()
+#     df = proc.load_data('davidsons-1.txt')
+#     df.to_csv('test_winepos.csv')
+#     print(df.head())
+#     print(df.shape)
+#     df = proc.process_data(df)
+#     print(df.head())
+#     print(df.shape)
+#     print('Saving test_processWinePos.csv')
+#     df.to_csv('test_processWinePos.csv')
 
     # print("Testing processCashRegisterExpress()")
     # proc = processCashRegisterExpress()
@@ -1294,13 +1298,14 @@ if __name__ == "__main__":
     # print('Saving test_KMDS.csv')
     # df.to_csv('test_KMDS.csv')
 
-    # print("Testing TigerPOS() for candc2_handoff.csv")
-    # proc = processTiger()
-    # df = proc.load_data('candc2_handoff.csv')
-    # df = proc.process_data(df)
-    # print(df.head())
-    # print('Saving test_Tiger.csv')
-    # df.to_csv('test_Tiger.csv')
+    print("Testing TigerPOS() for candc2_handoff.csv")
+    proc = processTiger()
+    df = proc.load_data('candc2_handoff.csv')
+    print(df.head())
+    df = proc.process_data(df)
+    print(df.head())
+    print('Saving test_Tiger.csv')
+    df.to_csv('test_Tiger.csv')
 
     # print("Testing processSpirit2000_csv() for sweetwater.zip")
     # proc = processSpirit2000_csv()
