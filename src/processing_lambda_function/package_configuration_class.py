@@ -26,6 +26,7 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
                 print('ERROR: ', m.group(0).replace('PK','').replace('/','').replace('/PK',''))
                 return np.nan
 
+
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.-PK', str(string).upper())
         if m != None:
             try:
@@ -39,6 +40,21 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
                 return np.absolute(float(m.group(0).replace('-PK','').replace('/','')))
             except:
                 print('ERROR: ', m.group(0).replace('-PK','').replace('/','').replace('/',''))
+                return np.nan
+
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.-PACK', str(string).upper())
+        if m != None:
+            try:
+                return np.absolute(float(m.group(0).replace('-PACK','').replace('/','')))
+            except:
+                print('ERROR: ', m.group(0).replace('-PACK','').replace('/',''))
+                return np.nan
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+-PACK', str(string).upper())
+        if m != None:
+            try:
+                return np.absolute(float(m.group(0).replace('-PACK','').replace('/','')))
+            except:
+                print('ERROR: ', m.group(0).replace('-PACK','').replace('/','').replace('/',''))
                 return np.nan
 
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.PK', str(string).upper())
