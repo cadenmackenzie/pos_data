@@ -1162,9 +1162,15 @@ class processAdvent(processLiquorPos_csv):
                     count += 1
                 elif isinstance(df, pd.DataFrame) and count > 0:
                     if 'PACKID' in final_df.columns and 'PACKID' in df.columns:
-                        final_df = final_df.merge(df, on=['PACKID'])
+                        if df.shape[0] > final_df.shape[0]:
+                            final_df = df.merge(final_df, on=['PACKID'], how='left')
+                        else:
+                            final_df = final_df.merge(df, on=['PACKID'], how='left')
                     elif 'SIZEID' in final_df.columns and 'SIZEID' in df.columns:
-                        final_df = final_df.merge(df, on=['SIZEID'])
+                        if df.shape[0] > final_df.shape[0]:
+                            final_df = df.merge(final_df, on=['SIZEID'], how='left')
+                        else:
+                            final_df = final_df.merge(df, on=['SIZEID'], how='left')
                     else:
                         raise Exception("Can't find unique key - expecting 'SIZEID' or 'PACKID'.")
                     count += 1
