@@ -227,62 +227,6 @@ class processTiger(processMPower):
 
 
 
-class processAdvent(processTiger):
-    def __init__(self):
-        super(processAdvent, self).__init__()
-        self.col_names_dict = {
-            'sku':'rt_product_id',
-            'mainupc':'rt_upc_code',
-            1:'rt_brand_name',
-            'itemname':'rt_brand_description',
-            'catid':'rt_product_type',
-            # 'depid':'rt_product_category',
-            'description':'rt_package_size', # are we sure about this???
-            'priceperunit':'price_regular',
-            'isserialized':'price_sale', # This should be CURRENTCOST or ISSERIALIZED
-            'instoreqty':'qty_on_hand'
-        }
-        pass
-
-    def load_data(self, input_filenames):        
-        if '.csv' in input_filenames:
-            # df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1', skiprows=4, header=None) # read in filename as str using | as delimiter
-            # return df
-            df = pd.read_csv(input_filenames) # read in filename as str using | as delimiter
-            return df
-        else:
-            raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
-        pass
-
-    def process_data(self, df):
-        df.rename(columns=self.col_names_dict, inplace=True)
-
-        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
-        # if product_id can not be a digit then change this to simply drop the first row
-        df['rt_product_id'] = df['rt_product_id'].astype(str)
-
-        # Get rt_package_size from first element of string (seperated by ',') in 'KEYWORD' column in file
-        df['rt_package_size'] = df['rt_package_size'].str.split(',').str[0]
-
-        # For both rt_product_type and rt_product_category turn depid into category
-        df['rt_product_type'] = df['rt_product_type'].astype(str).apply(lambda x: 'BEER' if x == '5' \
-                                                                        else 'LIQUOR' if x == '1' \
-                                                                        else 'WINE' if x == '2' \
-                                                                        else 'EXTRAS')
-
-        # set rt_product_category to equal rt_product_type since both are determined from depid is file
-        df['rt_product_category'] = df['rt_product_type']
-
-        # Fill in sale price with 0 if it is not a digit
-        df['price_sale'] = pd.to_numeric(df['price_sale'], errors='coerce')
-        df['price_sale'] = df['price_sale'].fillna(0).astype(float)
-        
-        df = self._clean_up(df)
-        df = self._check_data_types(df)
-        df = df[self.cols]
-        return df
-
-
 class processCashRegisterExpress(processMPower):
     def __init__(self):
         super(processCashRegisterExpress, self).__init__()
@@ -434,16 +378,20 @@ class processLiquorPos(processMPower):
                     df = self.read_dbf_files(f)
                     df.drop(['BARCODE'], axis=1, inplace=True)
                 else:
+                    df = None
                     pass
 
-                if count == 0:
+                if isinstance(df, pd.DataFrame) and count == 0:
                     final_df = df
-                elif count > 0:
+                    count += 1
+                elif isinstance(df, pd.DataFrame) and count > 0:
                     if 'CODE_NUM' in final_df.columns and 'CODE_NUM' in df.columns:
                         final_df = final_df.merge(df, on=['CODE_NUM'])
                     else:
                         raise Exception("Can't find unique key - expecting 'CODE_NUM' to be unique key.")
-                count += 1
+                    count += 1
+                else:
+                    pass
         else:
             raise Exception("Unrecognized file type - expecting .zip of .dbf files")
         return final_df
@@ -462,6 +410,8 @@ class processLiquorPos(processMPower):
         # Create rt_brand_description as combo of brand and descrip
         df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
 
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','') + ' Pack'
+
         df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
@@ -470,7 +420,7 @@ class processLiquorPos(processMPower):
 
 class processLiquorPos_csv(processLiquorPos):
     def __init__(self):
-        super(processLiquorPos, self).__init__()
+        super(processLiquorPos_csv, self).__init__()
         self.col_names_dict = {
             'code_num':'rt_product_id',
             'barcode':'rt_upc_code',
@@ -524,22 +474,26 @@ class processLiquorPos_csv(processLiquorPos):
             for f in file_paths:
                 print('filename: ', f)
                 if 'barcodes.csv' in f.lower():
-                    df = self.read_dbf_files(f)
+                    df = pd.read_csv(f)
                     df = df[['CODE_NUM','BARCODE']]
                 elif 'liqcode.csv' in f.lower():
-                    df = self.read_dbf_files(f)
+                    df = pd.read_csv(f)
                     df.drop(['BARCODE'], axis=1, inplace=True)
                 else:
+                    df = None
                     pass
 
-                if count == 0:
+                if isinstance(pd.DataFrame) and count == 0:
                     final_df = df
-                elif count > 0:
+                    count += 1
+                elif isinstance(pd.DataFrame) and count > 0:
                     if 'CODE_NUM' in final_df.columns and 'CODE_NUM' in df.columns:
                         final_df = final_df.merge(df, on=['CODE_NUM'])
                     else:
                         raise Exception("Can't find unique key - expecting 'CODE_NUM' to be unique key.")
-                count += 1
+                    count += 1
+                else:
+                    pass
         else:
             raise Exception("Unrecognized file type - expecting .zip of .csv files")
         return final_df
@@ -557,6 +511,8 @@ class processLiquorPos_csv(processLiquorPos):
 
         # Create rt_brand_description as combo of brand and descrip
         df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
+
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','') + ' Pack'
 
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -654,16 +610,20 @@ class processSpirit2000_dbf(processLiquorPos):
                     df = df[idx]
                     df = df[['SKU','UPC']]
                 else:
+                    df = None
                     pass
 
-                if count == 0:
+                if isinstance(pd.DataFrame) and count == 0:
                     final_df = df
-                elif count > 0:
+                    count += 1
+                elif isinstance(pd.DataFrame) and count > 0:
                     if 'SKU' in final_df.columns and 'SKU' in df.columns:
                         final_df = final_df.merge(df, on=['SKU'])
                     else:
                         raise Exception("Can't find unique key - expecting 'SKU' to be unique key.")
-                count += 1
+                    count += 1
+                else:
+                    pass
         else:
             raise Exception("Unrecognized file type - expecting .zip of .dbf files")
         return final_df
@@ -765,11 +725,13 @@ class processSpirit2000_csv(processSpirit2000_dbf):
                     df = df[idx]
                     df = df[['sku','upc']]
                 else:
+                    df = None
                     pass
 
-                if count == 0:
+                if isinstance(pd.DataFrame) and count == 0:
                     final_df = df
-                elif count > 0:
+                    count += 1
+                elif isinstance(pd.DataFrame) and count > 0:
                     if 'sku' in final_df.columns and 'sku' in df.columns:
                         final_df['sku'] = final_df['sku'].astype(str)
                         df['sku'] = df['sku'].astype(str)
@@ -777,7 +739,9 @@ class processSpirit2000_csv(processSpirit2000_dbf):
                         final_df = final_df.merge(df, on=['sku'])
                     else:
                         raise Exception("Can't find unique key - expecting 'sku' to be unique key.")
-                count += 1
+                    count += 1
+                else:
+                    pass
         else:
             raise Exception("Unrecognized file type - expecting .zip of .csv files")
         return final_df
@@ -942,16 +906,20 @@ class processSpirit2000_tower(processSpirit2000_dbf):
                     df = df[idx]
                     df = df[['SKU','UPC']]
                 else:
+                    df = None
                     pass
 
-                if count == 0:
+                if isinstance(df, pd.DataFrame) and count == 0:
                     final_df = df
-                elif count > 0:
+                    count += 1
+                elif isinstance(df, pd.DataFrame) and count > 0:
                     if 'SKU' in final_df.columns and 'SKU' in df.columns:
                         final_df = final_df.merge(df, on=['SKU'])
                     else:
                         raise Exception("Can't find unique key - expecting 'SKU' to be unique key.")
-                count += 1
+                    count += 1
+                else:
+                    pass
         else:
             raise Exception("Unrecognized file type - expecting .zip of .dbf files")
         return final_df
@@ -1148,6 +1116,96 @@ class processKMDS(processMPower):
         return df
 
 
+class processAdvent(processLiquorPos_csv):
+    def __init__(self):
+        super(processAdvent, self).__init__()
+        self.col_names_dict = {
+            'sku':'rt_product_id',
+            'mainupc':'rt_upc_code',
+            'itemname':'rt_brand_name',
+            'description':'rt_brand_description',
+            'catid':'rt_product_type',
+            # 'depid':'rt_product_category',
+            'packname':'rt_package_size',
+            'sizename':'rt_item_size',
+            'priceperunit':'price_regular',
+            'isserialized':'price_sale', # This should be CURRENTCOST or ISSERIALIZED
+            'instoreqty':'qty_on_hand'
+        }
+        pass
+
+    def load_data(self, input_filename):
+        print(input_filename)
+        count = 0
+        if '.zip' in input_filename:
+            # Read .zip file
+            file_paths = self.extract_files(input_filename)
+            print('advent .csv filepaths: ', file_paths)
+            # iterate through files in .zip file and read into pandas dataframe
+            for f in file_paths:
+                print('filename: ', f)
+                if 'zz_adventpos_raw.csv' in f.lower():
+                    df = pd.read_csv(f)
+
+                elif 'zz_adventpos_raw_itemsize.csv' in f.lower():
+                    df = pd.read_csv(f)
+                    df = df[['SIZEID','SIZENAME']]
+
+                elif 'zz_adventpos_raw_itempack.csv' in f.lower():
+                    df = pd.read_csv(f)
+                    df = df[['PACKID','PACKNAME']]
+                else:
+                    pass
+
+                if isinstance(df, pd.DataFrame) and count == 0:
+                    final_df = df
+                    count += 1
+                elif isinstance(df, pd.DataFrame) and count > 0:
+                    if 'PACKID' in final_df.columns and 'PACKID' in df.columns:
+                        final_df = final_df.merge(df, on=['PACKID'])
+                    elif 'SIZEID' in final_df.columns and 'SIZEID' in df.columns:
+                        final_df = final_df.merge(df, on=['SIZEID'])
+                    else:
+                        raise Exception("Can't find unique key - expecting 'SIZEID' or 'PACKID'.")
+                    count += 1
+                else:
+                    pass
+        else:
+            raise Exception("Unrecognized file type - expecting .zip of .csv files")
+        return final_df
+
+    def process_data(self, df):
+        df.columns = [x.lower() for x in df.columns]
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+
+        # Get rt_package_size from first element of string (seperated by ',') in 'KEYWORD' column in file
+        df['rt_package_size'] = df['rt_package_size'].str.split(',').str[0]
+
+        # For both rt_product_type and rt_product_category turn depid into category
+        df['rt_product_type'] = df['rt_product_type'].astype(str).apply(lambda x: 'BEER' if x == '5' \
+                                                                        else 'LIQUOR' if x == '1' \
+                                                                        else 'WINE' if x == '2' \
+                                                                        else 'EXTRAS')
+
+        # set rt_product_category to equal rt_product_type since both are determined from depid is file
+        df['rt_product_category'] = df['rt_product_type']
+
+        df['rt_brand_description'] = df['rt_brand_name'] + ' ' + df['rt_brand_description']
+
+        # Fill in sale price with 0 if it is not a digit
+        df['price_sale'] = pd.to_numeric(df['price_sale'], errors='coerce')
+        df['price_sale'] = df['price_sale'].fillna(0).astype(float)
+        
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+
 # All POS functions
 def get_retailer_info(filename):
     start = time.time()
@@ -1182,11 +1240,14 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'tiger':
         pos_proc = processTiger()
         
-    elif retailer_pos.lower() == 'advent':
+    elif retailer_pos.lower() == 'adventpos':
         pos_proc = processAdvent()
 
     elif retailer_pos.lower() == 'liquorpos':
         pos_proc = processLiquorPos()
+
+    elif retailer_pos.lower() == 'liquorpos_csv':
+        pos_proc = processLiquorPos_csv()
 
     elif retailer_pos.lower() == 'spirit2000_dbf':
         pos_proc = processSpirit2000_dbf()
@@ -1266,7 +1327,7 @@ def lambda_handler(event, context):
         'body': json.dumps('Success!')
     }
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 #     print('Testing processWinePos()')
 #     proc = processWinePos()
 #     df = proc.load_data('davidsons-1.txt')
@@ -1397,14 +1458,14 @@ if __name__ == "__main__":
     # print('Saving test_KMDS.csv')
     # df.to_csv('test_KMDS.csv')
 
-    print("Testing TigerPOS() for candc2_handoff.csv")
-    proc = processTiger()
-    df = proc.load_data('candc2_handoff.csv')
-    print(df.head())
-    df = proc.process_data(df)
-    print(df.head())
-    print('Saving test_Tiger.csv')
-    df.to_csv('test_Tiger.csv')
+    # print("Testing TigerPOS() for candc2_handoff.csv")
+    # proc = processTiger()
+    # df = proc.load_data('candc2_handoff.csv')
+    # print(df.head())
+    # df = proc.process_data(df)
+    # print(df.head())
+    # print('Saving test_Tiger.csv')
+    # df.to_csv('test_Tiger.csv')
 
     # print("Testing processSpirit2000_csv() for sweetwater.zip")
     # proc = processSpirit2000_csv()
