@@ -231,22 +231,24 @@ class processAdvent(processTiger):
     def __init__(self):
         super(processAdvent, self).__init__()
         self.col_names_dict = {
-            0:'rt_product_id',
-            4:'rt_upc_code',
+            'sku':'rt_product_id',
+            'mainupc':'rt_upc_code',
             1:'rt_brand_name',
-            3:'rt_brand_description',
-            27:'rt_product_type',
+            'itemname':'rt_brand_description',
+            'catid':'rt_product_type',
             # 'depid':'rt_product_category',
-            96:'rt_package_size', # are we sure about this???
-            13:'price_regular',
-            54:'price_sale', # This should be CURRENTCOST or ISSERIALIZED
-            19:'qty_on_hand'
+            'description':'rt_package_size', # are we sure about this???
+            'priceperunit':'price_regular',
+            'isserialized':'price_sale', # This should be CURRENTCOST or ISSERIALIZED
+            'instoreqty':'qty_on_hand'
         }
         pass
 
     def load_data(self, input_filenames):        
         if '.csv' in input_filenames:
-            df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1', skiprows=4, header=None) # read in filename as str using | as delimiter
+            # df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1', skiprows=4, header=None) # read in filename as str using | as delimiter
+            # return df
+            df = pd.read_csv(input_filenames) # read in filename as str using | as delimiter
             return df
         else:
             raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
@@ -257,7 +259,7 @@ class processAdvent(processTiger):
 
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
-        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
 
         # Get rt_package_size from first element of string (seperated by ',') in 'KEYWORD' column in file
         df['rt_package_size'] = df['rt_package_size'].str.split(',').str[0]
@@ -380,7 +382,8 @@ class processLiquorPos(processMPower):
             # 'typenam':'rt_product_category',
             'size':'rt_package_size',
             'price':'price_regular',
-            'qty_on_hnd':'qty_on_hand'
+            'qty_on_hnd':'qty_on_hand',
+            'qty_case':'wholesale_package_size'
         }
         pass
 
@@ -452,6 +455,102 @@ class processLiquorPos(processMPower):
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
         df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+
+        # make rt_product_category == rt_product_type since pulling from same column in file
+        df['rt_product_category'] = df['rt_product_type']
+
+        # Create rt_brand_description as combo of brand and descrip
+        df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+
+class processLiquorPos_csv(processLiquorPos):
+    def __init__(self):
+        super(processLiquorPos, self).__init__()
+        self.col_names_dict = {
+            'code_num':'rt_product_id',
+            'barcode':'rt_upc_code',
+            'brand':'rt_brand_name',
+            'descrip':'rt_brand_description',
+            'typenam':'rt_product_type',
+            # 'typenam':'rt_product_category',
+            'size':'rt_package_size',
+            'price':'price_regular',
+            'qty_on_hnd':'qty_on_hand',
+            'qty_case':'wholesale_package_size'
+        }
+        pass
+
+    # def extract_files(self, file_path):
+    #     '''
+    #     Adapted from https://stackoverflow.com/questions/56786321/read-multiple-csv-files-zipped-in-one-file
+    #     '''
+    #     with ZipFile(file_path, "r") as z:
+    #         z.extractall("/tmp/")
+
+    #     unzipped_path = '/tmp/var/www/html/' + file_path.replace('/tmp/','').replace('.zip','')
+        
+    #     # print('glob unzipped path: ',glob(unzipped_path))
+        
+    #     file_paths = glob(unzipped_path+'/*.dbf')
+    #     return file_paths
+
+    def extract_files(self, file_path):
+        '''
+        Adapted from https://stackoverflow.com/questions/56786321/read-multiple-csv-files-zipped-in-one-file
+        '''
+        with ZipFile(file_path, "r") as z:
+            z.extractall("/tmp/")
+            
+        unzipped_path = '/tmp/tmp/'
+        
+        file_paths = glob(unzipped_path+'/*.csv')
+
+        return file_paths
+
+
+    def load_data(self, input_filename):
+        print(input_filename)
+        count = 0
+        if '.zip' in input_filename:
+            # Read .zip file
+            file_paths = self.extract_files(input_filename)
+            print('liquorpos .csv filepaths: ', file_paths)
+            # iterate through files in .zip file and read into pandas dataframe
+            for f in file_paths:
+                print('filename: ', f)
+                if 'barcodes.csv' in f.lower():
+                    df = self.read_dbf_files(f)
+                    df = df[['CODE_NUM','BARCODE']]
+                elif 'liqcode.csv' in f.lower():
+                    df = self.read_dbf_files(f)
+                    df.drop(['BARCODE'], axis=1, inplace=True)
+                else:
+                    pass
+
+                if count == 0:
+                    final_df = df
+                elif count > 0:
+                    if 'CODE_NUM' in final_df.columns and 'CODE_NUM' in df.columns:
+                        final_df = final_df.merge(df, on=['CODE_NUM'])
+                    else:
+                        raise Exception("Can't find unique key - expecting 'CODE_NUM' to be unique key.")
+                count += 1
+        else:
+            raise Exception("Unrecognized file type - expecting .zip of .csv files")
+        return final_df
+
+    def process_data(self, df):
+        df.columns = df.columns.str.lower() # lower case column names
+        df.rename(columns=self.col_names_dict, inplace=True) # rename columns to standard naming for inventoryExtension
+
+        # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
+        # if product_id can not be a digit then change this to simply drop the first row
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
 
         # make rt_product_category == rt_product_type since pulling from same column in file
         df['rt_product_category'] = df['rt_product_type']
