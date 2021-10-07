@@ -1200,7 +1200,7 @@ class processAdvent(processLiquorPos_csv):
         # set rt_product_category to equal rt_product_type since both are determined from depid is file
         df['rt_product_category'] = df['rt_product_type']
 
-        df['rt_brand_description'] = df['rt_brand_name'] + ' ' + df['rt_brand_description']
+        df['rt_brand_description'] = df['rt_brand_name'].fillna('') + ' ' + df['rt_brand_description'].fillna('')
 
         # Fill in sale price with 0 if it is not a digit
         df['price_sale'] = pd.to_numeric(df['price_sale'], errors='coerce')
