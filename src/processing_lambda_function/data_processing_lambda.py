@@ -483,10 +483,10 @@ class processLiquorPos_csv(processLiquorPos):
                     df = None
                     pass
 
-                if isinstance(pd.DataFrame) and count == 0:
+                if isinstance(df, pd.DataFrame) and count == 0:
                     final_df = df
                     count += 1
-                elif isinstance(pd.DataFrame) and count > 0:
+                elif isinstance(df, pd.DataFrame) and count > 0:
                     if 'CODE_NUM' in final_df.columns and 'CODE_NUM' in df.columns:
                         final_df = final_df.merge(df, on=['CODE_NUM'])
                     else:
@@ -727,16 +727,20 @@ class processSpirit2000_csv(processSpirit2000_dbf):
                 else:
                     df = None
                     pass
-
-                if isinstance(pd.DataFrame) and count == 0:
+                
+                if isinstance(df, pd.DataFrame) and count == 0:
                     final_df = df
                     count += 1
-                elif isinstance(pd.DataFrame) and count > 0:
+                elif isinstance(df, pd.DataFrame) and count > 0:
                     if 'sku' in final_df.columns and 'sku' in df.columns:
                         final_df['sku'] = final_df['sku'].astype(str)
                         df['sku'] = df['sku'].astype(str)
-
-                        final_df = final_df.merge(df, on=['sku'])
+                        
+                        if df.shape[0] > final_df.shape[0]:
+                            final_df = df.merge(final_df, on=['sku'], how='left')
+                        else:
+                            final_df = final_df.merge(df, on=['sku'], how='left')
+                        
                     else:
                         raise Exception("Can't find unique key - expecting 'sku' to be unique key.")
                     count += 1
@@ -1141,11 +1145,15 @@ class processAdvent(processLiquorPos_csv):
             # Read .zip file
             file_paths = self.extract_files(input_filename)
             print('advent .csv filepaths: ', file_paths)
+            
+            final_df = pd.read_csv('/tmp/tmp/ZZ_AdventPOS_Raw.csv')
+            count += 1
             # iterate through files in .zip file and read into pandas dataframe
             for f in file_paths:
                 print('filename: ', f)
                 if 'zz_adventpos_raw.csv' in f.lower():
-                    df = pd.read_csv(f)
+                    # df = pd.read_csv(f)
+                    df = None
 
                 elif 'zz_adventpos_raw_itemsize.csv' in f.lower():
                     df = pd.read_csv(f)
@@ -1155,8 +1163,8 @@ class processAdvent(processLiquorPos_csv):
                     df = pd.read_csv(f)
                     df = df[['PACKID','PACKNAME']]
                 else:
-                    pass
-
+                    df = None
+                    
                 if isinstance(df, pd.DataFrame) and count == 0:
                     final_df = df
                     count += 1
@@ -1183,6 +1191,7 @@ class processAdvent(processLiquorPos_csv):
     def process_data(self, df):
         df.columns = [x.lower() for x in df.columns]
         df.rename(columns=self.col_names_dict, inplace=True)
+        print(df.columns)
 
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
