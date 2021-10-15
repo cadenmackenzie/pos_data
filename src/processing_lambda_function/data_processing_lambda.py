@@ -150,6 +150,8 @@ class processWinePos(processMPower):
         df['pack_price_sale'] = df['pack_price_sale'].astype(float)
         df['sale_date_start'] = pd.to_datetime(df['sale_date_start'])
         df['sale_date_end'] = pd.to_datetime(df['sale_date_end'])
+        
+        df['rt_product_id'] = df['rt_product_id'].astype(str).str.replace('.0','')
 
         # if not zero then use pack_price_regular otherwise use unit_price_regular
         df['price_regular'] = df.apply(lambda x: 
@@ -164,7 +166,7 @@ class processWinePos(processMPower):
             x['qty_on_hand'] / x['rt_package_size'],
             axis=1)
 
-        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str) + ' Pack'
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','') + ' Pack'
         
         df['rt_package_size'] = df['rt_package_size'].astype(str) + ' Pack'
 
