@@ -69,6 +69,8 @@ class processMPower(object):
         if 'price_sale' not in df.columns:
             df['price_sale'] = 0
 
+        df['rt_product_id'] = df['rt_product_id'].astype(str).str.replace('.0','')
+
         df = df[df['price_regular'] != 0]
         df.drop_duplicates(subset=['rt_product_id'], inplace=True)
         return df
