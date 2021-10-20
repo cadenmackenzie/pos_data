@@ -169,7 +169,7 @@ class processWinePos(processMPower):
             x['qty_on_hand'] / x['rt_package_size'],
             axis=1)
 
-        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','') + ' Pack'
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','',  regex=False) + ' Pack'
         
         df['rt_package_size'] = df['rt_package_size'].astype(str) + ' Pack'
 
