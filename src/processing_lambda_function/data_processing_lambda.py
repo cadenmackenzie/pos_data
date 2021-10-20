@@ -72,8 +72,6 @@ class processMPower(object):
         df['rt_product_id'] = df['rt_product_id'].astype(str)
         df['rt_product_id'] = df['rt_product_id'].str.replace('.0','', regex=False)
 
-        print(df[df['rt_brand_description'] == 'CUTWATER COCKTAIL VODKA MULE'])
-
         df = df[df['price_regular'] != 0]
         df.drop_duplicates(subset=['rt_product_id'], inplace=True)
         return df
@@ -91,7 +89,6 @@ class processMPower(object):
         df.rename(columns=self.col_names_dict, inplace=True)
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
-        print(df[df['rt_brand_description'] == 'CUTWATER COCKTAIL VODKA MULE'])
         # df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
         
         df = self._clean_up(df)
