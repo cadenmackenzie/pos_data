@@ -69,6 +69,9 @@ class processMPower(object):
         if 'price_sale' not in df.columns:
             df['price_sale'] = 0
 
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+        df['rt_product_id'] = df['rt_product_id'].str.replace('.0','', regex=False)
+
         df = df[df['price_regular'] != 0]
         df.drop_duplicates(subset=['rt_product_id'], inplace=True)
         return df
@@ -86,7 +89,7 @@ class processMPower(object):
         df.rename(columns=self.col_names_dict, inplace=True)
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
-        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+        # df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
         
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -150,6 +153,8 @@ class processWinePos(processMPower):
         df['pack_price_sale'] = df['pack_price_sale'].astype(float)
         df['sale_date_start'] = pd.to_datetime(df['sale_date_start'])
         df['sale_date_end'] = pd.to_datetime(df['sale_date_end'])
+        
+        df['rt_product_id'] = df['rt_product_id'].astype(str).str.replace('.0','')
 
         # if not zero then use pack_price_regular otherwise use unit_price_regular
         df['price_regular'] = df.apply(lambda x: 
@@ -164,7 +169,7 @@ class processWinePos(processMPower):
             x['qty_on_hand'] / x['rt_package_size'],
             axis=1)
 
-        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str) + ' Pack'
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','') + ' Pack'
         
         df['rt_package_size'] = df['rt_package_size'].astype(str) + ' Pack'
 
@@ -1342,7 +1347,15 @@ def lambda_handler(event, context):
         'body': json.dumps('Success!')
     }
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    print('Testing processmPower()')
+    proc = processMPower()
+    df = proc.load_data('big_bear_2.csv')
+    df = process_pos('big_bear_2.csv', 'test_big_bear_2.csv')
+
+    # print('Saving test_big_bear_2.csv')
+    # df.to_csv('test_big_bear_2.csv')
+
 #     print('Testing processWinePos()')
 #     proc = processWinePos()
 #     df = proc.load_data('davidsons-1.txt')
