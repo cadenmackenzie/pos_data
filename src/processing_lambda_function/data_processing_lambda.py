@@ -69,7 +69,10 @@ class processMPower(object):
         if 'price_sale' not in df.columns:
             df['price_sale'] = 0
 
-        df['rt_product_id'] = df['rt_product_id'].astype(str).str.replace('.0','')
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+        df['rt_product_id'] = df['rt_product_id'].str.replace('.0','', regex=False)
+
+        print(df[df['rt_brand_description'] == 'CUTWATER COCKTAIL VODKA MULE'])
 
         df = df[df['price_regular'] != 0]
         df.drop_duplicates(subset=['rt_product_id'], inplace=True)
@@ -88,7 +91,8 @@ class processMPower(object):
         df.rename(columns=self.col_names_dict, inplace=True)
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
-        df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+        print(df[df['rt_brand_description'] == 'CUTWATER COCKTAIL VODKA MULE'])
+        # df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
         
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -1346,7 +1350,15 @@ def lambda_handler(event, context):
         'body': json.dumps('Success!')
     }
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    print('Testing processmPower()')
+    proc = processMPower()
+    df = proc.load_data('big_bear_2.csv')
+    df = process_pos('big_bear_2.csv', 'test_big_bear_2.csv')
+
+    # print('Saving test_big_bear_2.csv')
+    # df.to_csv('test_big_bear_2.csv')
+
 #     print('Testing processWinePos()')
 #     proc = processWinePos()
 #     df = proc.load_data('davidsons-1.txt')
