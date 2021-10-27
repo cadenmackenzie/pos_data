@@ -78,8 +78,12 @@ class processMPower(object):
 
     def load_data(self, input_filenames):
         if '.csv' in input_filenames:
-            df = pd.read_csv(input_filenames) # read in filename as str
-            return df
+            try:
+                df = pd.read_csv(input_filenames) # read in filename as str
+                return df
+            except:
+                df = pd.read_csv(input_filenames, engine='python', error_bad_lines=False) # read in filename as str
+                return df
         else:
             raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
         pass
@@ -137,7 +141,7 @@ class processWinePos(processMPower):
 
     def load_data(self, input_filenames):        
         if '.txt' in input_filenames:
-            df = pd.read_csv(input_filenames, sep='\t', header=None) # read in filename as str using \t as delimiter
+            df = pd.read_csv(input_filenames, sep='\t', header=None, error_bad_lines=False) # read in filename as str using \t as delimiter
             return df
         else:
             raise Exception("Unrecognized file type - expecting .txt")
@@ -198,18 +202,14 @@ class processTiger(processMPower):
     
     def load_data(self, input_filenames):        
         if '.csv' in input_filenames:
-            # try:
-            #     df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter (for original script)
-            #     return df
-            # except:
-            df = pd.read_csv(input_filenames) # read in filename as str using , as delimiter (for cloud connector)
-            return df
-        # if '.csv' in input_filenames:
-        #     df = pd.read_csv(input_filenames) # read in filename as str
-        #     return df
+            try:
+                df = pd.read_csv(input_filenames) # read in filename as str
+                return df
+            except:
+                df = pd.read_csv(input_filenames, engine='python', error_bad_lines=False) # read in filename as str
+                return df
         else:
             raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
-        pass
 
     def process_data(self, df):
         df.columns = df.columns.str.lower()
@@ -479,10 +479,10 @@ class processLiquorPos_csv(processLiquorPos):
             for f in file_paths:
                 print('filename: ', f)
                 if 'barcodes.csv' in f.lower():
-                    df = pd.read_csv(f)
+                    df = pd.read_csv(f, error_bad_lines=False)
                     df = df[['CODE_NUM','BARCODE']]
                 elif 'liqcode.csv' in f.lower():
-                    df = pd.read_csv(f)
+                    df = pd.read_csv(f, error_bad_lines=False)
                     df.drop(['BARCODE'], axis=1, inplace=True)
                 else:
                     df = None
@@ -690,12 +690,12 @@ class processSpirit2000_csv(processSpirit2000_dbf):
             for f in file_paths:
                 print('filename: ', f)
                 if 'inv.csv' in f.lower():
-                    df = pd.read_csv(f)
+                    df = pd.read_csv(f, error_bad_lines=False)
                     df = df[['sku','name','sname','ml','pack','sdate','typename','websent','sent']]
 
 
                 elif 'prc.csv' in f.lower():
-                    df = pd.read_csv(f)
+                    df = pd.read_csv(f, error_bad_lines=False)
                     # print(df)
                     df = df[['sku','qty','price','sale','onsale','who','level','tstamp']]
 
@@ -711,7 +711,7 @@ class processSpirit2000_csv(processSpirit2000_dbf):
                     df = df[['sku','qty','price','sale','onsale','who','level']]
 
                 elif 'stk.csv' in f.lower():
-                    df = pd.read_csv(f)
+                    df = pd.read_csv(f, error_bad_lines=False)
                     df = df[['sku','back','tstamp']]
 
                     df['tstamp'] = pd.to_datetime(df['tstamp'], )
@@ -721,7 +721,7 @@ class processSpirit2000_csv(processSpirit2000_dbf):
                     df = df[['sku','back']]
 
                 elif 'upc.csv' in f.lower():
-                    df = pd.read_csv(f)
+                    df = pd.read_csv(f, error_bad_lines=False)
                     df = df[['sku','upc','tstamp']]
 
                     df['tstamp'] = pd.to_datetime(df['tstamp'])
@@ -1068,16 +1068,16 @@ class processKMDS(processMPower):
             # 'caseqty':'rt_package_size'
         }
 
-    def load_data(self, input_filenames): 
-        if '.csv' in input_filenames:
-            df = pd.read_csv(input_filenames) # read in filename as str
-            return df       
-        # if '.csv' in input_filenames:
-        #     df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
-        #     return df
-        else:
-            raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
-        pass
+    # def load_data(self, input_filenames): 
+    #     if '.csv' in input_filenames:
+    #         df = pd.read_csv(input_filenames) # read in filename as str
+    #         return df       
+    #     # if '.csv' in input_filenames:
+    #     #     df = pd.read_csv(input_filenames, sep='|', encoding='ISO-8859-1') # read in filename as str using | as delimiter
+    #     #     return df
+    #     else:
+    #         raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
+    #     pass
 
     def clean_wholesale(self, x):
         if int(x['sizecaseqty']) > 1:
@@ -1100,7 +1100,6 @@ class processKMDS(processMPower):
             return '-1'
         else:
             return x['upcitemid']
-        
 
     def process_data(self, df):
         # Lower the columns and rename
@@ -1151,7 +1150,7 @@ class processAdvent(processLiquorPos_csv):
             file_paths = self.extract_files(input_filename)
             print('advent .csv filepaths: ', file_paths)
             
-            final_df = pd.read_csv('/tmp/tmp/ZZ_AdventPOS_Raw.csv')
+            final_df = pd.read_csv('/tmp/tmp/ZZ_AdventPOS_Raw.csv', error_bad_lines=False)
             count += 1
             # iterate through files in .zip file and read into pandas dataframe
             for f in file_paths:
@@ -1161,11 +1160,11 @@ class processAdvent(processLiquorPos_csv):
                     df = None
 
                 elif 'zz_adventpos_raw_itemsize.csv' in f.lower():
-                    df = pd.read_csv(f)
+                    df = pd.read_csv(f, error_bad_lines=False)
                     df = df[['SIZEID','SIZENAME']]
 
                 elif 'zz_adventpos_raw_itempack.csv' in f.lower():
-                    df = pd.read_csv(f)
+                    df = pd.read_csv(f, error_bad_lines=False)
                     df = df[['PACKID','PACKNAME']]
                 else:
                     df = None
@@ -1220,6 +1219,49 @@ class processAdvent(processLiquorPos_csv):
         df['price_sale'] = pd.to_numeric(df['price_sale'], errors='coerce')
         df['price_sale'] = df['price_sale'].fillna(0).astype(float)
         
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+
+class processBusinessMasterEspanol(processMPower):
+    def __init__(self):
+        super(processBusinessMasterEspanol, self).__init__()
+        self.col_names_dict = {
+            'sku':'rt_product_id',
+            'upc':'rt_upc_code',
+            'product name':'rt_brand_description',
+            'contenido':'rt_package_size',
+            'quantity':'qty_on_hand',
+            'price':'price_regular',
+            'saleprice':'price_sale',
+            'department':'rt_product_type'
+        }
+
+    def get_sale_price(self, x):
+        today = datetime.datetime.today()
+        if today >= x['sale_date_start'] and today <= x['sale_date_end'] and x['price_regular'] != x['price_sale']:
+            return x['price_sale']
+        else:
+            return 0
+
+    def process_data(self, df):
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        df['sale_date_start'] = pd.to_datetime(df['salestartdate'])
+        df['sale_date_end'] = pd.to_datetime(df['saleenddate'])
+
+        # Create unique SKU
+        df['rt_product_id'] = df['rt_product_id'].astype(str) + ' - ' + df['rt_package_size'].astype(str)
+
+        df['rt_package_size'] = df['rt_package_size'].astype(str) + ' Pack'
+
+        # Sale Price
+        df['price_sale'] = df.apply(lambda x: self.get_sale_price(x), axis=1)
+
         df = self._clean_up(df)
         df = self._check_data_types(df)
         df = df[self.cols]
@@ -1299,6 +1341,9 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'winepos':
         pos_proc = processWinePos()
 
+    elif retailer_pos.lower() == 'businessmasterespanol':
+        pos_proc = processBusinessMasterEspanol()
+
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
@@ -1348,10 +1393,7 @@ def lambda_handler(event, context):
     }
 
 if __name__ == "__main__":
-    print('Testing processmPower()')
-    proc = processMPower()
-    df = proc.load_data('big_bear_2.csv')
-    df = process_pos('big_bear_2.csv', 'test_big_bear_2.csv')
+    process_pos('fernandez_square_96.csv', 'test_fernandez_square_96.csv')
 
     # print('Saving test_big_bear_2.csv')
     # df.to_csv('test_big_bear_2.csv')
