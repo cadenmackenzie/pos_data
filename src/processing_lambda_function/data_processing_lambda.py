@@ -44,7 +44,7 @@ class processMPower(object):
                 df[c] = pd.to_numeric(df[c], errors='coerce').astype(float)
                 df[c] = df[c].fillna(0)
             elif c in ['rt_upc_code']:
-                df[c] = df[c].fillna('').astype(str).str.rstrip('.0')
+                df[c] = df[c].fillna('').astype(str).str.replace('.0', '', regex=False)
             else:
                 df[c] = df[c].fillna('').astype(str)
         return df
@@ -158,7 +158,7 @@ class processWinePos(processMPower):
         df['sale_date_start'] = pd.to_datetime(df['sale_date_start'])
         df['sale_date_end'] = pd.to_datetime(df['sale_date_end'])
         
-        df['rt_product_id'] = df['rt_product_id'].astype(str).str.replace('.0','')
+        df['rt_product_id'] = df['rt_product_id'].astype(str).str.replace('.0','', regex=False)
 
         # if not zero then use pack_price_regular otherwise use unit_price_regular
         df['price_regular'] = df.apply(lambda x: 
@@ -415,7 +415,7 @@ class processLiquorPos(processMPower):
         # Create rt_brand_description as combo of brand and descrip
         df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
 
-        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','') + ' Pack'
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','', regex=False) + ' Pack'
 
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -517,7 +517,7 @@ class processLiquorPos_csv(processLiquorPos):
         # Create rt_brand_description as combo of brand and descrip
         df['rt_brand_description'] = df['rt_brand_name'].astype(str) + " " + df['rt_brand_description'].astype(str)
 
-        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','') + ' Pack'
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(str).str.replace('.0','', regex=False) + ' Pack'
 
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -1254,6 +1254,9 @@ class processBusinessMasterEspanol(processMPower):
         df['sale_date_start'] = pd.to_datetime(df['salestartdate'])
         df['sale_date_end'] = pd.to_datetime(df['saleenddate'])
 
+        # SKU is UPC
+        df['rt_upc_code'] = df['rt_product_id'].astype(str)
+
         # Create unique SKU
         df['rt_product_id'] = df['rt_product_id'].astype(str) + ' - ' + df['rt_package_size'].astype(str)
 
@@ -1261,6 +1264,38 @@ class processBusinessMasterEspanol(processMPower):
 
         # Sale Price
         df['price_sale'] = df.apply(lambda x: self.get_sale_price(x), axis=1)
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+
+class processFasTrax(processMPower):
+    def __init__(self):
+        super(processFasTrax, self).__init__()
+        self.col_names_dict = {
+            'plu_num':'rt_product_id',
+            # 'plu_num':'rt_upc_code',
+            'plu_desc':'rt_brand_description',
+            'dept_grp':'rt_product_type',
+            'category':'rt_product_category',
+            'class':'rt_package_size',
+            'sub_class':'rt_item_size',
+            'qty_on_hand':'qty_on_hand',
+            'last_price':'price_regular',
+        }
+
+    def process_data(self, df):
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # SKU is UPC
+        df['rt_upc_code'] = df['rt_product_id'].astype(str)
+
+        # Create unique SKU
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
 
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -1344,6 +1379,9 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'businessmasterespanol':
         pos_proc = processBusinessMasterEspanol()
 
+    elif retailer_pos.lower() == 'fastraxpos':
+       pos_proc = processFasTrax()
+
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
@@ -1393,7 +1431,7 @@ def lambda_handler(event, context):
     }
 
 if __name__ == "__main__":
-    process_pos('fernandez_square_96.csv', 'test_fernandez_square_96.csv')
+    process_pos('ThriftyBeverageHamiltonSt.csv', 'test_ThriftyBeverageHamiltonSt.csv')
 
     # print('Saving test_big_bear_2.csv')
     # df.to_csv('test_big_bear_2.csv')

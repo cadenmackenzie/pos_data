@@ -238,6 +238,28 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
         if m != None:
             return np.absolute(float(m.group(0).replace('KEG',''))), 'KEG'
 
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+FL OZ', str(string).upper())
+        if m != None:
+            return float(m.group(0).replace('FL OZ','')), 'OZ'
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.FL OZ', str(string).upper())
+        if m != None:
+            try:
+                return float(m.group(0).replace('FL OZ','')), 'OZ'
+            except:
+                print('ERROR: ', m.group(0).replace('FL OZ',''))
+                return np.nan, 'OZ'
+
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+FLOZ', str(string).upper())
+        if m != None:
+            return float(m.group(0).replace('FLOZ','')), 'OZ'
+        m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+.FLOZ', str(string).upper())
+        if m != None:
+            try:
+                return float(m.group(0).replace('FLOZ','')), 'OZ'
+            except:
+                print('ERROR: ', m.group(0).replace('FLOZ',''))
+                return np.nan, 'OZ'
+
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+OZ', str(string).upper())
         if m != None:
             try:
