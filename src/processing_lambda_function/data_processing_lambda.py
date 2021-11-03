@@ -4,6 +4,7 @@ import time
 import requests
 import json
 import boto3
+import re
 from urllib.parse import unquote_plus
 from glob import glob
 from zipfile import ZipFile
@@ -48,6 +49,10 @@ class processMPower(object):
             else:
                 df[c] = df[c].fillna('').astype(str)
         return df
+
+    def _clean_upc(self, x):
+        x = re.sub("[^0-9]", "", str(x))
+        return x
 
     def _clean_up(self, df):
         # Check if non-required columns in the dataframe if not then set to empty string 
@@ -1303,6 +1308,35 @@ class processFasTrax(processMPower):
         return df
 
 
+class processPTech(processMPower):
+    def __init__(self):
+        super(processPTech, self).__init__()
+        self.col_names_dict = {
+            'sku':'rt_product_id',
+            'mainupc':'rt_upc_code',
+            'itemname':'rt_brand_description',
+            'deptname':'rt_product_type',
+            'instoreqty':'qty_on_hand',
+            'priceperunit':'price_regular',
+        }
+
+    def process_data(self, df):
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # SKU is UPC
+        df['rt_upc_code'] = df['rt_upc_code'].apply(lambda x: self._clean_upc(x))
+
+        # Create unique SKU
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+
 # All POS functions
 def get_retailer_info(filename):
     start = time.time()
@@ -1382,6 +1416,9 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'fastraxpos':
        pos_proc = processFasTrax()
 
+    elif retailer_pos.lower() == 'ptech':
+       pos_proc = processPTech()
+
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
@@ -1431,7 +1468,7 @@ def lambda_handler(event, context):
     }
 
 if __name__ == "__main__":
-    process_pos('ThriftyBeverageHamiltonSt.csv', 'test_ThriftyBeverageHamiltonSt.csv')
+    process_pos('strongwater_ptech.csv', 'test_strongwater_ptech.csv')
 
     # print('Saving test_big_bear_2.csv')
     # df.to_csv('test_big_bear_2.csv')
