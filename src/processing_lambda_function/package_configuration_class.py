@@ -133,6 +133,19 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
             except:
                 print('ERROR: ', m.group(0).replace('PACK',''))
                 return np.nan
+
+        m = re.search(r'\d[- \/.]\d*[- \/.]\d*', str(string).upper())
+        if m != None:
+            try:
+                if len(m.group(0).split('/')) == 3:
+                    return float(m.group(0).split('/')[1])
+                else:
+                    m = re.search(r'\d+(?=\/)', str(string).upper())
+                    if m != None:
+                        return float(m.group(0))
+            except:
+                print('ERROR: ', m.group(0))
+                return np.nan
             
         m = re.search(r'([-+]?[0-9]*\.?[0-9]+)+PC', str(string).upper())
         if m != None:
@@ -171,10 +184,6 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
             except:
                 print('ERROR: ', m.group(0).replace('BTL','').replace('/',''))
                 return np.nan
-
-        m = re.search(r'\d+(?=\/)', str(string).upper())
-        if m != None:
-            return float(m.group(0))
 
         if str(string).upper() == 'SINGLE':
             return 1.0
