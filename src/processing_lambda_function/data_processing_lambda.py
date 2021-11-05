@@ -1019,7 +1019,7 @@ class processCobaltConnect(processMPower):
         super(processCobaltConnect, self).__init__()
         self.col_names_dict = {
             'code':'rt_product_id',
-            'upc':'rt_upc_code',
+            'sku':'rt_upc_code',
             'name':'rt_brand_description',
             'size':'rt_item_size',
             'retail_price':'price_regular',
@@ -1280,8 +1280,8 @@ class processFasTrax(processMPower):
     def __init__(self):
         super(processFasTrax, self).__init__()
         self.col_names_dict = {
-            'plu_num':'rt_product_id',
-            # 'plu_num':'rt_upc_code',
+            'row_id':'rt_product_id',
+            'plu_num':'rt_upc_code',
             'plu_desc':'rt_brand_description',
             'dept_grp':'rt_product_type',
             'category':'rt_product_category',
@@ -1295,9 +1295,6 @@ class processFasTrax(processMPower):
         # Lower the columns and rename
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
-
-        # SKU is UPC
-        df['rt_upc_code'] = df['rt_product_id'].astype(str)
 
         # Create unique SKU
         df['rt_product_id'] = df['rt_product_id'].astype(str)

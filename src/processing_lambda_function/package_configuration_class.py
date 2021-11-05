@@ -489,15 +489,28 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
 
     def regex_rule_container(self, string):
         string = ' ' + str(string).upper() + ' '
+        m = re.search(r' TETRA|TETR', string)
+        if m != None:
+            return 'Tetra Pak'
+        m = re.search(r' CARTO', string)
+        if m != None:
+            return 'Carto Cans'
+        m = re.search(r' POUCH', string)
+        if m != None:
+            return 'Pouch'
         m = re.search(r'PKCN|PK CN|OZCN|OZ CN|SGLCN|SGL CN|PKC|PK C|PC|OZC|OZ C|SGLC|CANS|CAN|CNS|CN', string)
         if m != None:
-            return 'Cans'
-        m = re.search(r'PKBTL|PK BTL|OZBTL|OZ BTL|SGLBTL|SGL BTL|ML BTL|MLBTL|PKB|PK B|OZB|OZ B|SGLB|BTL|BOTTLES|BOTTLE|ML B|MLB|BT|NR|LN', string)
+            return 'Aluminum Cans'
+        m = re.search(r'PKBTL|PK BTL|OZBTL|OZ BTL|SGLBTL|SGL BTL|ML BTL|MLBTL|PKB|PK B|OZB|OZ B|SGLB|BTL|BOTTLES|BOTTLE|ML B|MLB|BT|NR |LN ', string)
         if m != None:
-            return 'Bottles'
-        # m = re.search(r' BOXED | BOX ', string)
-        # if m != None:
-        #     return 'Bag In Box'
+            alum = re.search(r' ALUMINUM| ALUM', string)
+            if alum != None:
+                return 'Aluminum Bottles'
+            else:
+                return 'Glass Bottles'
+        m = re.search(r' BOXED | BOX ', string)
+        if m != None:
+            return 'Bag-in-box'
         m = re.search(r' KEG|KEGS', string)
         if m != None:
             return 'Keg'
@@ -518,11 +531,11 @@ and new product creation (new_product_parse_sizes). Happy Parsing!
     def regex_logic_package_size(self, x):
         # if 'single' in str(x['rt_package_size']).lower() or 'single' in str(x['rt_brand_description']).lower() or 'single' in str(x['rt_item_size']).lower():
         #     return 1.0
-        m = self.regex_rule_package_size(x['rt_package_size'])
+        m = self.regex_rule_package_size(x['rt_brand_description'])
         if not math.isnan(m):
             return m
         else:
-            m = self.regex_rule_package_size(x['rt_brand_description'])
+            m = self.regex_rule_package_size(x['rt_package_size'])
             if not math.isnan(m):
                 return m
             else:
