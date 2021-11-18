@@ -104,7 +104,7 @@ class processMPower(object):
         # if product_id can not be a digit then change this to simply drop the first row
         # df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
         
-        if df['wholesale_package_size']:
+        if 'wholesale_package_size' in df.columns:
             df['rt_wholesale_qty'] = df['qty_on_hand']/df['wholesale_package_size']
 
         df['wholesale_package_size'] = df['wholesale_package_size'].astype(int).astype(str) + ' Pack'
@@ -1474,7 +1474,7 @@ def lambda_handler(event, context):
     }
 
 if __name__ == "__main__":
-    process_pos('strongwater_ptech.csv', 'test_strongwater_ptech.csv')
+    process_pos('Handoff_MollysGreenwood.csv', 'test_Handoff_MollysGreenwood.csv')
 
     # print('Saving test_big_bear_2.csv')
     # df.to_csv('test_big_bear_2.csv')
