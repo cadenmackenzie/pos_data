@@ -25,7 +25,7 @@ class processMPower(object):
             'rt_product_id','rt_upc_code','rt_brand_name',
             'rt_brand_description','rt_product_type','rt_product_category',
             'rt_package_size','rt_item_size','price_regular',
-            'price_sale','qty_on_hand','wholesale_package_size'
+            'price_sale','qty_on_hand','wholesale_package_size','rt_wholesale_qty'
             ]
         self.col_names_dict = {
             'product_id':'rt_product_id',
@@ -35,7 +35,8 @@ class processMPower(object):
             'product_type':'rt_product_type',
             'product_category':'rt_product_category',
             'package_size':'rt_package_size',
-            'sale_price':'price_sale'
+            'sale_price':'price_sale',
+            'casepk': 'wholesale_package_size'
         }
         pass
 
@@ -70,6 +71,8 @@ class processMPower(object):
             df['rt_upc_code'] = ''
         if 'wholesale_package_size' not in df.columns:
             df['wholesale_package_size'] = ''
+        if 'rt_wholesale_qty' not in df.columns:
+            df['rt_wholesale_qty'] = ''
         # Check if price_sale in the dataframe if not then set all price_sale to 0
         if 'price_sale' not in df.columns:
             df['price_sale'] = 0
@@ -93,12 +96,18 @@ class processMPower(object):
             raise Exception("Unrecognized file type - expecting .csv or zipped .csv.")
         pass
 
+
     def process_data(self, df):
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
         # Drop row where no product_id is provided (maybe not the case where it has to be a digit)
         # if product_id can not be a digit then change this to simply drop the first row
         # df = df[df['rt_product_id'].apply(lambda x: str(x).isdigit())]
+        
+        if 'wholesale_package_size' in df.columns:
+            df['rt_wholesale_qty'] = df['qty_on_hand']/df['wholesale_package_size']
+
+        df['wholesale_package_size'] = df['wholesale_package_size'].astype(int).astype(str) + ' Pack'
         
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -1019,12 +1028,12 @@ class processCobaltConnect(processMPower):
         super(processCobaltConnect, self).__init__()
         self.col_names_dict = {
             'code':'rt_product_id',
-            'upc':'rt_upc_code',
+            'sku':'rt_upc_code',
             'name':'rt_brand_description',
             'size':'rt_item_size',
             'retail_price':'price_regular',
-            'stock_qoh':'qty_on_hand',
-            'qtypercase':'wholesale_package_size'
+            'stock':'qty_on_hand',
+            # 'qtypercase':'wholesale_package_size'
         }
 
     def clean_wholesale(self, x):
@@ -1280,8 +1289,8 @@ class processFasTrax(processMPower):
     def __init__(self):
         super(processFasTrax, self).__init__()
         self.col_names_dict = {
-            'plu_num':'rt_product_id',
-            # 'plu_num':'rt_upc_code',
+            'row_id':'rt_product_id',
+            'plu_num':'rt_upc_code',
             'plu_desc':'rt_brand_description',
             'dept_grp':'rt_product_type',
             'category':'rt_product_category',
@@ -1295,9 +1304,6 @@ class processFasTrax(processMPower):
         # Lower the columns and rename
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
-
-        # SKU is UPC
-        df['rt_upc_code'] = df['rt_product_id'].astype(str)
 
         # Create unique SKU
         df['rt_product_id'] = df['rt_product_id'].astype(str)
@@ -1468,7 +1474,7 @@ def lambda_handler(event, context):
     }
 
 if __name__ == "__main__":
-    process_pos('strongwater_ptech.csv', 'test_strongwater_ptech.csv')
+    process_pos('Handoff_MollysGreenwood.csv', 'test_Handoff_MollysGreenwood.csv')
 
     # print('Saving test_big_bear_2.csv')
     # df.to_csv('test_big_bear_2.csv')

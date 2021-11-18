@@ -12,7 +12,7 @@ import boto3
 from botocore.exceptions import NoCredentialsError
 
 
-class connectLightSpeedPos(object):
+class ConnectLightSpeedPos(object):
   def __init__(self, retailer_id):
     self.retailer_id = retailer_id
     self.timestamp = None
@@ -231,15 +231,12 @@ class connectLightSpeedPos(object):
     self.upload_to_aws(local_file=f'/tmp/+{self.filename}', bucket='handoff-pos-raw', s3_file=self.filename)
     return
 
-class connectSquarePos(connectLightSpeedPos):
+class ConnectSquarePos(ConnectLightSpeedPos):
   def __init__(self, retailer_id):
-    super(connectSquarePos, self).__init__(retailer_id)
+    super(ConnectSquarePos, self).__init__(retailer_id)
     self.retailer_id = retailer_id
     self.timestamp = None
     self.token = None
-    # self.store_account_id = None
-    # self.data_size = 1
-    # self.limit = 100
     # pull the client_id and client_secret
     self.client_id = 'sq0idp-89PGcygTFfFCrmOpzGoF5g'
     self.client_secret = 'sq0csp-1RTykI-Ta_amx9JWASZpIXbbnw3fDqiaVRLljnsonrU'
@@ -506,6 +503,100 @@ class connectSquarePos(connectLightSpeedPos):
     df.to_csv(f'/tmp/+{self.filename}', index=False)
     return
 
+class connectMPower(ConnectSquarePos):
+  def __init__(self, retailer_id):
+    super(connectMPower, self).__init__(retailer_id)
+    self.retailer_id = retailer_id
+    self.timestamp = None
+    self.token = None
+    self.configure()
+    pass
+
+  def get_token(self):
+    '''
+    Get access token for API access
+    '''
+    self.token = self.refresh_token
+
+  def get_data(self, offset):
+    url = f"https://mpowerapi.azurewebsites.net/api/v1/Items?pageNumber={offset}&locationId=1"
+
+    payload={}
+    headers = {
+      'Authorization': self.token,
+    }
+
+    response = requests.request("GET", url, headers=headers, data=payload)
+    return response
+
+  def get_retail(self, x):
+      if not math.isnan(x['Retail_add_upc']):
+          return x['Retail_add_upc']
+      elif not math.isnan(x['Retail']):
+          return x['Retail']
+      else:
+          return x['CaseRetail']/x['CaseQuantity']
+
+  def get_qtyonhand(self, x):
+    if not math.isnan(x['Quantity']):
+        return x['QuantityOnHand']/x['Quantity']
+    else:
+        return x['QuantityOnHand']
+      
+  def get_size(self, x):
+    if not math.isnan(x['Quantity']):
+        return str(int(x['Quantity'])) + ' Pack ' + x['Size']
+    else:
+        return x['Size']
+
+  def standardize(self, df):
+    df['product_id'] = df['SkuNumber']
+
+    df['upc'] = df['Upc'].fillna(df['Upc_add_upc'])
+    df['upc'].fillna('',inplace=True)
+
+    df['brand_name'] = 
+
+    df['brand_description'] = df['Name']
+
+    df['product_type'] = df['Department']
+
+    df['product_category'] = df['Category']
+
+    df['CasePK'] = df['CaseQuantity']
+
+    df['price_regular'] = df.apply(lambda x: self.get_retail(x), axis=1)
+    df['qty_on_hand'] = df.apply(lambda x: self.get_qtyonhand(x), axis=1)
+    df['package_size'] = df.apply(lambda x: self.get_size(x), axis=1)
+
+  def build_csv(self):
+    dfs = []
+    current_page = 1
+    total_pages = 100
+
+    while current_page <= total_pages:
+      response = self.get_data(offset=current_page)
+           
+      additional_upcs = pd.json_normalize(response.json()['Results'], 'AdditionalUpcs', ['Id'])
+      items = pd.json_normalize(response.json()['Results'])
+      
+      df = pd.merge(items, additional_upcs, how='outer', on='Id', suffixes=('_item','_add_upc'))
+      dfs.append(df)
+      
+      # Pagination
+      total_pages = response.json()['TotalPages']
+      current_page += 1
+      print(total_pages, current_page, len(dfs))
+      
+      time.sleep(1)
+    
+    df = pd.concat(dfs, axis=0)
+
+    df = self.standardize(df)
+
+    df.to_csv(f'/tmp/+{self.filename}', index=False)
+    return
+
 
 
 def get_pos():
@@ -525,18 +616,26 @@ def lambda_handler(event, context):
 
     # Configure POS and retailer_id
     if 'lightspeed' in retailer_df['pos'].str.lower().tolist():
-        retailer_ids = retailer_df[retailer_df['pos'].str.lower() == 'lightspeed']['id'].tolist()
-        for r_id in retailer_ids:
-          print(f'retailer_id: {r_id} uses lightspeed pos system')
-          connect_api = connectLightSpeedPos(retailer_id=r_id)
-          connect_api.main()
+      retailer_ids = retailer_df[retailer_df['pos'].str.lower() == 'lightspeed']['id'].tolist()
+      for r_id in retailer_ids:
+        print(f'retailer_id: {r_id} uses lightspeed pos system')
+        connect_api = ConnectLightSpeedPos(retailer_id=r_id)
+        connect_api.main()
 
     if 'square' in retailer_df['pos'].str.lower().tolist():
-        retailer_ids = retailer_df[retailer_df['pos'].str.lower() == 'square']['id'].tolist()
-        for r_id in retailer_ids:
-          print(f'retailer_id: {r_id} uses square pos system')
-          connect_api = connectSquarePos(retailer_id=r_id)
-          connect_api.main()
+      retailer_ids = retailer_df[retailer_df['pos'].str.lower() == 'square']['id'].tolist()
+      for r_id in retailer_ids:
+        print(f'retailer_id: {r_id} uses square pos system')
+        connect_api = ConnectSquarePos(retailer_id=r_id)
+        connect_api.main()
+
+    if 'mpower' in retailer_df['pos'].str.lower().tolist():
+      retailer_ids = retailer_df[(retailer_df['pos'].str.lower() == 'mpower') & (retailer_df['refreshToken'].str.lower().notnull())]['id'].tolist()
+      print(retailer_ids)
+      for r_id in retailer_ids:
+        print(f'retailer_id: {r_id} uses square pos system')
+        connect_api = connectMPower(retailer_id=r_id)
+        connect_api.main()
     
     print('Function Complete')
     end = time.time()
@@ -547,5 +646,6 @@ def lambda_handler(event, context):
     }
 
 if __name__ == "__main__":
-  sq = connectSquarePos(retailer_id=46)
-  sq.build_csv()
+  get_pos()
+  mp = connectMPower(retailer_id=86)
+  mp.build_csv()
