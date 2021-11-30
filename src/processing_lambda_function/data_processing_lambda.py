@@ -106,8 +106,7 @@ class processMPower(object):
         
         if 'wholesale_package_size' in df.columns:
             df['rt_wholesale_qty'] = df['qty_on_hand']/df['wholesale_package_size']
-
-        df['wholesale_package_size'] = df['wholesale_package_size'].astype(int).astype(str) + ' Pack'
+            df['wholesale_package_size'] = df['wholesale_package_size'].astype(int).astype(str) + ' Pack'
         
         df = self._clean_up(df)
         df = self._check_data_types(df)
@@ -1343,6 +1342,41 @@ class processPTech(processMPower):
         return df
 
 
+class processLajoyPOS(processMPower):
+    def __init__(self):
+        super(processLajoyPOS, self).__init__()
+        self.col_names_dict = {
+            'rt_product_id':'rt_product_id',
+            'rt_upc_code':'rt_upc_code',
+            'rt_brand_name':'rt_brand_name',
+            'rt_brand_description':'rt_brand_description',
+            'rt_product_type':'rt_product_type',
+            'rt_product_category':'rt_product_category',
+            'rt_package_size':'rt_package_size',
+            'rt_item_size':'rt_item_size',
+            'price_regular':'price_regular',
+            'price_sale':'price_sale',
+            'qty_on_hand':'qty_on_hand',
+            'wholesale_package_size':'wholesale_package_size'
+        }
+
+    def process_data(self, df):
+        # Lower the columns and rename
+        df.columns = df.columns.str.lower()
+        df.rename(columns=self.col_names_dict, inplace=True)
+
+        # remove letters from UPC code
+        df['rt_upc_code'] = df['rt_upc_code'].apply(lambda x: self._clean_upc(x))
+
+        # Create unique SKU
+        df['rt_product_id'] = df['rt_product_id'].astype(str)
+
+        df = self._clean_up(df)
+        df = self._check_data_types(df)
+        df = df[self.cols]
+        return df
+
+
 # All POS functions
 def get_retailer_info(filename):
     start = time.time()
@@ -1425,6 +1459,9 @@ def process_pos(input_filename, output_filename):
     elif retailer_pos.lower() == 'ptech':
        pos_proc = processPTech()
 
+    elif retailer_pos.lower() == 'lajoypos':
+       pos_proc = processLajoyPOS()
+
     start = time.time()
     df = pos_proc.load_data(input_filename) # load function for specific POS system
     df = pos_proc.process_data(df) # Processing for specific POS system
@@ -1474,7 +1511,7 @@ def lambda_handler(event, context):
     }
 
 if __name__ == "__main__":
-    process_pos('Handoff_MollysGreenwood.csv', 'test_Handoff_MollysGreenwood.csv')
+    process_pos('pos_pull_test.csv', 'test_pos_pull_test.csv')
 
     # print('Saving test_big_bear_2.csv')
     # df.to_csv('test_big_bear_2.csv')
