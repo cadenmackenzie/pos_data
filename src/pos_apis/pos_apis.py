@@ -189,10 +189,7 @@ class ConnectLightSpeedPos(object):
     while offset < self.data_size:
       print(f'offset {offset}, data_size:{self.data_size}')
       self.get_token()
-      time.sleep(1)
-
       self.get_account_id()
-      time.sleep(1)
 
       partial_data_df = func(offset=offset)
 
