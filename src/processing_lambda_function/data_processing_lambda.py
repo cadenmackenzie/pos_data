@@ -970,7 +970,7 @@ class processLightSpeed(processMPower):
     def __init__(self):
         super(processLightSpeed, self).__init__()
         self.col_names_dict = {
-            'itemid':'rt_product_id',
+            'systemsku':'rt_product_id',
             'upc':'rt_upc_code',
             # '':'rt_brand_name',
             'description':'rt_brand_description',
@@ -1330,7 +1330,7 @@ class processPTech(processMPower):
         df.columns = df.columns.str.lower()
         df.rename(columns=self.col_names_dict, inplace=True)
 
-        # SKU is UPC
+        # remove letters from UPC code
         df['rt_upc_code'] = df['rt_upc_code'].apply(lambda x: self._clean_upc(x))
 
         # Create unique SKU
