@@ -970,7 +970,7 @@ class processLightSpeed(processMPower):
     def __init__(self):
         super(processLightSpeed, self).__init__()
         self.col_names_dict = {
-            'itemid':'rt_product_id',
+            'systemsku':'rt_product_id',
             'upc':'rt_upc_code',
             # '':'rt_brand_name',
             'description':'rt_brand_description',

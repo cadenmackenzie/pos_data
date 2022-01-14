@@ -65,6 +65,7 @@ class ConnectLightSpeedPos(object):
       
     else:
       print("ERROR: can't retrive AccountID.")
+      print(response.headers())
       print(response.json())
     return 
 
@@ -90,6 +91,7 @@ class ConnectLightSpeedPos(object):
       
       else:
         print("ERROR: can't retrive token.")
+        print(response.headers())
         print(response.json())
 
     else:
@@ -115,6 +117,7 @@ class ConnectLightSpeedPos(object):
     response = requests.request("GET", url, headers=headers, data=payload)
 
     if response.status_code == 401:
+      print(response.headers())
       print(response.json())
       self.token = None
       return
@@ -139,6 +142,7 @@ class ConnectLightSpeedPos(object):
     
     else:
       print('ERROR')
+      print(response.headers())
       print(response.json())
       return
 
@@ -158,6 +162,7 @@ class ConnectLightSpeedPos(object):
     response = requests.request("GET", url, headers=headers, data=payload)
 
     if response.status_code == 401:
+      print(response.headers())
       print(response.json())
       self.token = None
       return
@@ -171,6 +176,7 @@ class ConnectLightSpeedPos(object):
     
     else:
       print('ERROR')
+      print(response.headers())
       print(response.json())
       return
 
@@ -183,13 +189,17 @@ class ConnectLightSpeedPos(object):
     while offset < self.data_size:
       print(f'offset {offset}, data_size:{self.data_size}')
       self.get_token()
+      time.sleep(1)
+
       self.get_account_id()
+      time.sleep(1)
 
       partial_data_df = func(offset=offset)
 
       if isinstance(partial_data_df, pd.DataFrame) and len(partial_data_df) > 0:
         data.append(partial_data_df)
         offset += self.limit
+        time.sleep(1)
       else:
         continue
     return pd.concat(data, axis=0)
